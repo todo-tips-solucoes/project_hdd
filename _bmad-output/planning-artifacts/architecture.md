@@ -1915,7 +1915,7 @@ Salvar como memória persistente `feedback-hdd-soft-convention-rot.md`:
 
 | # | Obrigação | Origem |
 |---|---|---|
-| **AO-151** | **[REVISTO D-050]** Cost model em `docs/cost-model.md` **RECOMPUTADO**: implementação (~2-3M tokens/mês) agora corre na API por default → custo USD recorrente é o eixo principal (não mais R$0 marginal). Definir cost cap mensal + ponto de overflow para Max 20x. Reavalia mensal. | Cost economics challenge; reescopo D-050 |
+| **AO-151** | **[✅ RESOLVIDO 2026-05-26]** Cost model recomputado e aprovado em `docs/cost-model.md`: implementação (~2-3M tokens/mês) corre na API por default → custo USD ~$8-18/m (bottom-up). **Cost cap = $30/m** (~R$150 @ R$5/USD); **ponto de overflow** = gasto API mês-a-data ≥ cap → Max 20x. Budget sobe para ~R$1150/m (**D-051**, postura B, `approve ao151`). Consumido por Story 6.a.1 (AC-5) + 6.a.2. **Reavalia mensal** (gatilho: window-consumption >70% em 10 dias) contra telemetry real — modelo ainda não validado contra produção. | Cost economics challenge; reescopo D-050 |
 | **AO-152** | Reviewer "warning mode" durante primeira semana — todas issues como WARN; threshold REJECTED só após Day 7 | Reviewer calibration challenge |
 | **AO-153** | Sprint 0 inclui rehearsals: (a) Bun→Node migration 1×; (b) **[D-050]** validar o caminho DEFAULT API pay-per-token impl. + ensaiar overflow→Max 20x 1× | Plan B ensaio challenge |
 | **AO-154** | Primeira story do piloto = feature isolada que NÃO modifica worker em execução | Meta-dogfood circular dependency challenge |
