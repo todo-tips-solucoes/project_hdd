@@ -15,7 +15,7 @@ inputDocuments:
 workflowType: 'architecture'
 project_name: 'projeto_hdd'
 project_name_official: 'HORSE DRIVEN DEVELOPMENT (HDD)'
-user_name: 'paulotodo'
+user_name: 'operador'
 date: '2026-05-20'
 status: 'in-progress'
 lastStep: 'step-08-complete'
@@ -874,7 +874,7 @@ ConfigSchema (bootstrap-time)
 
 > Step 05 cobre **convenções enforceable** + **contratos de agente** + **boundary refinements**. Conduzido com 3 rondas:
 > Round 1: patterns base + Boundary Test (whitelist refinada) + Reviewer Agent auto-introspecção
-> Round 2: Dev Agent + Master Agent + paulotodo Day-in-the-Life + Worked Example
+> Round 2: Dev Agent + Master Agent + operador Day-in-the-Life + Worked Example
 > Synthesis em `step-05-elicitation-results.md`.
 > **28 novas AOs (AO-96..AO-123); total 123 AOs activas.**
 
@@ -1161,7 +1161,7 @@ Pre-spawn budget check: estimar pior caso vs saldo restante; pausar+notificar em
 
 ---
 
-### Operator Real-World Findings (paulotodo Day-in-the-Life)
+### Operator Real-World Findings (operador Day-in-the-Life)
 
 **Insight central (tornar memória persistente):**
 > O verdadeiro valor não é a autonomia — é a **externalização da memória de contexto**. Sistema lembra; operador não precisa.
@@ -1173,7 +1173,7 @@ Pre-spawn budget check: estimar pior caso vs saldo restante; pausar+notificar em
 3. **Cold-start anomaly:** gap-detector Haiku 4.5 retorna null às 06h47 (VPS fria) — padrão recorrente não nos testes
 4. **Confidence 6.5/10:** cai a 4 nos primeiros 3 min de um P1; sobe a 8 vendo PR limpo. **Mitigação:** melhor onboarding visual em P1 (não só texto WhatsApp — incluir link directo para diff/state)
 5. **PR diff size:** Sonnet adicionou índice não pedido em 340-line diff — **soft warn em 200 linhas, justification em 350+**
-6. **Priority granularity:** paulotodo propõe collapse 4 triggers → 2 níveis cognitivos. **Não cortamos triggers (brief P-2 protected), mas WhatsApp comunica em 2 níveis** (`URGENTE` vs `INFORMATIVO`). Cada trigger interno mapeia.
+6. **Priority granularity:** operador propõe collapse 4 triggers → 2 níveis cognitivos. **Não cortamos triggers (brief P-2 protected), mas WhatsApp comunica em 2 níveis** (`URGENTE` vs `INFORMATIVO`). Cada trigger interno mapeia.
 
 ---
 
@@ -1265,7 +1265,7 @@ Story traced through 6 agentes (PM → Arq → Sprint → Dev → Reviewer → M
 
 ### Tensão `[OPEN-v1.1]`
 
-- Priority granularity: brief P-2 fixa 4 triggers internos (P1+S1+S2+S3); paulotodo sugere collapse para 2 níveis externos. **v1:** manter 4 triggers internamente; comunicar em 2 níveis cognitivos (`URGENTE` vs `INFORMATIVO`) ao operador. **v1.1+:** reavaliar pós-piloto.
+- Priority granularity: brief P-2 fixa 4 triggers internos (P1+S1+S2+S3); operador sugere collapse para 2 níveis externos. **v1:** manter 4 triggers internamente; comunicar em 2 níveis cognitivos (`URGENTE` vs `INFORMATIVO`) ao operador. **v1.1+:** reavaliar pós-piloto.
 
 ### BLOCKERS finais agregados antes de M1
 
@@ -1289,7 +1289,7 @@ Story traced through 6 agentes (PM → Arq → Sprint → Dev → Reviewer → M
 
 > Step 06 cobre **estrutura completa file-by-file + boundaries + requirements mapping + dependency graph rigour + cold-start onboarding + critical path M1**. Conduzido com 2 rondas:
 > **Round 1:** Dep Graph Rigour (AO-133..135) + Cold-Start LLM Reviewer (AO-136..143)
-> **Round 2:** Reverse Engineering M1 + QA Agent + Sprint Planner + Future paulotodo 1y later (AO-144..150 + 6 refinamentos + 4 schemas formais)
+> **Round 2:** Reverse Engineering M1 + QA Agent + Sprint Planner + Future operador 1y later (AO-144..150 + 6 refinamentos + 4 schemas formais)
 > Synthesis em `step-06-elicitation-results.md` + `step-06-elicitation-round2.md`
 > **18 novas AOs (AO-133..AO-150); total 144 AOs activas.**
 
@@ -1801,12 +1801,12 @@ interface SprintPlanOutput {
 | # | Obrigação | Origem |
 |---|---|---|
 | **AO-144** | `docs/m1-critical-path.md` com dependências AOs + gates por week + mitigações | Reverse Engineering |
-| **AO-145** | Context-bundle persisted TTL 6 semanas + comando `bun run purge-context` (refina AO-143) | Future paulotodo |
-| **AO-146** | Resumos Tier-A + AO-113 daily narrative em **formato curto FIXO** (5 bullets, não prosa) — refina AO-113 | Future paulotodo |
-| **AO-147** | ADR momentum check: CI gate "última ADR > 60 dias + features merged ≥3" = warning | Future paulotodo |
-| **AO-148** | Auto-archive `summaries/` após 30d sem acesso → `summaries/archive/` | Future paulotodo |
-| **AO-149** | `skills/` (BMB custom outputs) `README.md` index obrigatório | Future paulotodo |
-| **AO-150** | AO-122 max-lines com **pre-commit hook** (não só CI gate) — author-bypass mitigation | Future paulotodo case study |
+| **AO-145** | Context-bundle persisted TTL 6 semanas + comando `bun run purge-context` (refina AO-143) | Future operador |
+| **AO-146** | Resumos Tier-A + AO-113 daily narrative em **formato curto FIXO** (5 bullets, não prosa) — refina AO-113 | Future operador |
+| **AO-147** | ADR momentum check: CI gate "última ADR > 60 dias + features merged ≥3" = warning | Future operador |
+| **AO-148** | Auto-archive `summaries/` após 30d sem acesso → `summaries/archive/` | Future operador |
+| **AO-149** | `skills/` (BMB custom outputs) `README.md` index obrigatório | Future operador |
+| **AO-150** | AO-122 max-lines com **pre-commit hook** (não só CI gate) — author-bypass mitigation | Future operador case study |
 
 **Refinamentos:**
 - AO-113 → formato 5 bullets fixo
@@ -1820,7 +1820,7 @@ interface SprintPlanOutput {
 
 ---
 
-## 3 lessons devastadoras (Future paulotodo case study)
+## 3 lessons devastadoras (Future operador case study)
 
 Salvar como memória persistente `feedback-hdd-soft-convention-rot.md`:
 
@@ -2015,7 +2015,7 @@ Salvar como memória persistente `feedback-hdd-soft-convention-rot.md`:
 | B. Decisão fatal 6m? | **No** mas AO-86 SPoF must resolve Sprint 0 |
 | C. Rollback trivial 1h Day 5? | **Yes**, mechanism exists; adequate Sprint 0 scope |
 | D. Elicitation custou mais que valeu? | **No.** Proporcionado à complexidade |
-| E. paulotodo autorizado Sprint 0 amanhã? | **APPROVE-WITH-CONDITIONS** |
+| E. operador autorizado Sprint 0 amanhã? | **APPROVE-WITH-CONDITIONS** |
 
 ---
 
@@ -2160,7 +2160,7 @@ bun add -d drizzle-kit typescript @biomejs/biome typescript-eslint
 ### Final Architecture Summary
 
 **Projeto:** HORSE DRIVEN DEVELOPMENT (HDD) — pipeline autónomo assíncrono BMAD + OpenClaw + WhatsApp Interrupt
-**Operador:** `paulotodo` (solo founder, intermediate BMAD)
+**Operador:** `operador` (solo founder, intermediate BMAD)
 **Stack:** Bun 1.3+ · Hono · Commander · bun:sqlite + Drizzle · Litestream + rclone R2 EU · Anthropic Max 20x · neverthrow@^8 · Biome + typescript-eslint
 **Canal:** WhatsApp via `clihelper.example.com` (app proprietário operador) · Resend fallback S3
 **Modelo:** Bimodal (Modo Colaborativo Claude Code + Modo Autónomo worker VPS) · Interrupt rule P1 + S1 + S2 + S3
@@ -2274,7 +2274,7 @@ _bmad-output/planning-artifacts/
 Architecture document serve como single source of truth para todas as decisões técnicas downstream. AI agents (Dev/Reviewer/QA + Master orchestrator) devem referenciar este documento + `context-bundle.json` (AO-119, AO-142, AO-143) durante implementação.
 
 > *"O verdadeiro valor não é a autonomia — é a externalização da memória de contexto."*
-> — `paulotodo`, dia-in-the-life simulation (preserved in `project-hdd-externalisation-thesis.md`)
+> — `operador`, dia-in-the-life simulation (preserved in `project-hdd-externalisation-thesis.md`)
 
 **Total: 178 Architectural Obligations activas. Architecture ready for implementation pending Sprint 0 conditions.**
 

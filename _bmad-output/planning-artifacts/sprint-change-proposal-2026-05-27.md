@@ -2,7 +2,7 @@
 
 - **Data:** 2026-05-27
 - **Projeto:** projeto_hdd (HORSE DRIVEN DEVELOPMENT)
-- **Autor / aprovador:** paulotodo (solo-op — acumula PM/Arquiteto/Dev)
+- **Autor / aprovador:** operador (solo-op — acumula PM/Arquiteto/Dev)
 - **Workflow:** `bmad-correct-course` (modo incremental)
 - **Decisão criada:** **D-050** (sucede D-049)
 - **Estado:** ✅ Aprovado e ratificado nos artefatos canónicos
@@ -78,7 +78,7 @@ Todas as edições abaixo foram **aprovadas (incremental, "aprovar todos") e apl
 ## Secção 5 — Implementation Handoff
 
 - **Escopo:** **MAJOR** (reescreve decisão fundacional propagando por PRD + Architecture + Epics), executado como Direct Adjustment porque não muda arquitetura de código nem o pipeline.
-- **Handoff:** solo-op (paulotodo) — sem coordenação multi-pessoa.
+- **Handoff:** solo-op (operador) — sem coordenação multi-pessoa.
 - **Próximas ações concretas:**
   1. **AO-151** — recomputar `docs/cost-model.md` + definir cost cap USD mensal e ponto de overflow (pré-requisito do AC-5 da Story 6.a.1).
   2. Refletir D-050 em `docs/runbooks/ban-Anthropic-emergency.md` quando a Story 6.b.2 for trabalhada (overflow é agora o caminho normal, não só emergência).

@@ -30,7 +30,7 @@ Obligations definidas, 40 decisões formais registadas, 21 perspectivas
 deu APPROVE-WITH-CONDITIONS com Medium confidence.
 
 Decisões críticas finais:
-• DRB Verdict: APPROVE-WITH-CONDITIONS — paulotodo autorizado Sprint 0
+• DRB Verdict: APPROVE-WITH-CONDITIONS — operador autorizado Sprint 0
 • 4 BLOCKERS Sprint 0: AO-86 (operador) + 3 safety AOs (155/158/160 + refinamentos)
 • 8 Pentest Tasks PT-1..PT-8 verificáveis antes de M1
 • 5 schemas formais (Dev/Review/QA/Sprint/Story Outputs)
@@ -85,7 +85,7 @@ Estado: ready-with-conditions · Open items: 4 Sprint 0 BLOCKERS · Janela: ~12%
 - **`core/services/` introduzido** — application services que orquestram ports sem importar adapters (Dep Graph Rigour Step 06)
 - **AO-86 webhook schema operator-dependent** — SPoF aceite + feature flag mock-webhook fixtures durante Sprint 0
 - **Multi-modelo selection (FR-064/065) cortado** — Sonnet flat no worker; Plan B documented mas v1 simples
-- **`context-bundle` TTL 6 semanas + purge command** — beneficios optimistic become debt sem mecanismo (Future paulotodo lesson)
+- **`context-bundle` TTL 6 semanas + purge command** — beneficios optimistic become debt sem mecanismo (Future operador lesson)
 
 ### Open items deferidos (post-M1)
 
@@ -139,7 +139,7 @@ Múltiplas validation passes (Step 02 rubric oficial + Step 05 Reviewer agent + 
 - **D-031..D-034** (2026-05-20): bmad-create-architecture Step 01-03 (clihelper integration + Stack v2 Bun + Litestream)
 - **D-035..D-036** (2026-05-21): Step 03 + Step 04 incorporated (stack + 26 sub-decisões + 30 AOs)
 - **D-037..D-038** (2026-05-21): Step 05 + Step 06 incorporated (patterns + structure; +49 AOs)
-- **D-039** (2026-05-21): Step 06 round 2 completed (+21 AOs Future paulotodo + Reverse Eng + Sprint Planner + QA Agent)
+- **D-039** (2026-05-21): Step 06 round 2 completed (+21 AOs Future operador + Reverse Eng + Sprint Planner + QA Agent)
 - **D-040** (2026-05-22): Step 07 + Step 08 — DRB APPROVE-WITH-CONDITIONS + workflow CLOSED
 
 ### 3. Validation passes completos
@@ -148,7 +148,7 @@ Múltiplas validation passes (Step 02 rubric oficial + Step 05 Reviewer agent + 
 - **Step 07 round 1 Devil's Advocate + AI Safety** — verdict downgraded MINOR GAPS → MAJOR RISKS
 - **Step 07 round 2 Pentester + IR + DRB** — final verdict APPROVE-WITH-CONDITIONS
 - **Architecture Completeness Checklist:** 16/16 ✅
-- **DRB Mandatory Questions:** 4/5 favorable, 1 conditional (paulotodo autorizado Sprint 0 amanhã)
+- **DRB Mandatory Questions:** 4/5 favorable, 1 conditional (operador autorizado Sprint 0 amanhã)
 
 ### 4. Diff vs estado anterior (pre-workflow)
 
@@ -211,7 +211,7 @@ Ver `prd.md` §14 + `architecture.md` Step 07 — todas as `[ASSUMPTION]` marcad
 
 - **AI Safety findings** (FM-1..FM-9) e **Pentester findings** (AP-1..AP-8) preservados em step-07-elicitation-*.md files
 - **2 lessons devastadoras** preservadas como memórias persistentes (soft convention rot + composition risks)
-- **Future paulotodo case study** (Day-in-the-Life + 1 year later) → influenciou AO-145/146/147/148/149/150
+- **Future operador case study** (Day-in-the-Life + 1 year later) → influenciou AO-145/146/147/148/149/150
 - **Worked Example** (WhatsApp clihelper outbound adapter) em step-05-elicitation-results.md mostrou gaps abstracto→código
 
 ---

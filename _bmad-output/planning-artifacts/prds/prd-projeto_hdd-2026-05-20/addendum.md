@@ -39,11 +39,11 @@ Decisão registada em `.decision-log.md` (D-006 implícito; aprofundar se trocar
 4. **Workspace** = repositório local; `_bmad-output/` para artefactos
 
 ### A2.2 Camadas Modo Autónomo (VPS própria)
-1. **VPS** do `paulotodo` — Linux, SSH key-only, firewall mínimo (porta webhook + 22)
+1. **VPS** do `operador` — Linux, SSH key-only, firewall mínimo (porta webhook + 22)
 2. **Worker** rodando em **Node ou Python** (escolha em arquitetura — OQ-G). Executa loop de stories.
 3. **State store** — **Redis ou SQLite local** (OQ-B) para `current_story_id`, `story_status`, `paused_for_interrupt`, `last_interrupt_at`, `interrupt_pending_id`, `retry_count`, `current_workflow`, `current_phase`.
 4. **Audit logger** — JSONL estruturado em `_bmad-output/audit/<project>/<date>.jsonl` (uma linha por evento).
-5. **WhatsApp adapter** — módulo que fala com o **sistema proprietário do `paulotodo`** via REST API interna (OQ-E para library: Baileys / whatsapp-web.js / direta).
+5. **WhatsApp adapter** — módulo que fala com o **sistema proprietário do `operador`** via REST API interna (OQ-E para library: Baileys / whatsapp-web.js / direta).
 6. **E-mail adapter** — SMTP genérico ou serviço transacional (OQ-F: Resend / Postmark / SES).
 7. **Webhook listener** — endpoint HTTP que recebe mensagens entrantes do WhatsApp e injecta no contexto do agente.
 8. **BMAD invoker** — dispara skills BMAD via API local. **OQ-H:** confirmar se BMAD permite invocação programática directa ou requer um CLI-wrapper.
@@ -57,7 +57,7 @@ Decisão registada em `.decision-log.md` (D-006 implícito; aprofundar se trocar
 
 ```
 ┌─────────── MODO COLABORATIVO (local) ───────────┐
-│  paulotodo ↔ Claude Code (Opus 4.7 1M)          │
+│  operador ↔ Claude Code (Opus 4.7 1M)          │
 │       │                                          │
 │       └─ skills BMAD: brief → prd → arch →      │
 │          epics → readiness-check                 │
@@ -125,7 +125,7 @@ Decisão registada em `.decision-log.md` (D-006 implícito; aprofundar se trocar
 ## A4. Personas estendidas
 
 ### Persona primária — "O Operador"
-- **Quem:** desenvolvedor sénior solo ou tech-lead de equipa ≤ 5 (perfil = `paulotodo`, skill level `intermediate` em BMAD)
+- **Quem:** desenvolvedor sénior solo ou tech-lead de equipa ≤ 5 (perfil = `operador`, skill level `intermediate` em BMAD)
 - **Contexto:** quer libertar tempo de planeamento mecânico e execução repetitiva; mantém-se autoridade em todas as decisões estratégicas
 - **Necessidades:** ver progresso a qualquer momento (`bmad_get_state`); intervir cirurgicamente em checkpoints; rollback se desvio detectado; cost cap para não levar surpresas na fatura LLM
 - **Frustrações actuais:** ciclo PRD→backlog→sprint→PR consome semanas; troca de contexto entre fases é cara; informalidade gera decisões perdidas

@@ -5,7 +5,7 @@ project_name_official: "HORSE DRIVEN DEVELOPMENT (HDD)"
 phase: "Solução → Implementação (gate de transição BMAD)"
 date: 2026-05-22
 facilitator: bmad-check-implementation-readiness (Opus 4.7 1M)
-operator: paulotodo
+operator: operador
 language: pt-PT
 stepsCompleted: [step-01-document-discovery, step-02-prd-analysis, step-03-epic-coverage-validation, step-04-ux-alignment, step-05-epic-quality-review, step-06-final-assessment]
 finalized: 2026-05-22
@@ -201,7 +201,7 @@ Organizados em **7 categorias** com numeração NFR-XN.
 | Vision & Context (§1) | ✅ Tese clara · 2 modos colaborativo/autónomo bem definidos |
 | Problema & Oportunidade (§2) | ✅ Quantificado · operador-anchored |
 | Objetivos & Métricas (§3) | ✅ 3 princípios + 5 marcos + 6 não-objetivos |
-| Personas (§4) | ✅ Primária `paulotodo` + secundária diferida v1.1+ |
+| Personas (§4) | ✅ Primária `operador` + secundária diferida v1.1+ |
 | Escopo (§5) | ✅ Inclui/Não-inclui explícitos + D-043 clarification post-architecture |
 | User Journeys (§6) | ✅ UJ-1..UJ-4 cobertos |
 | Features (§7) | ✅ 9 features F1-F9 com 56 FRs numerados |

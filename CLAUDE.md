@@ -39,7 +39,7 @@ Manifesto autoritativo em `_bmad/_config/manifest.yaml`.
 - **Idioma de saída de documentos:** Portuguese (`_bmad/config.toml → [core].document_output_language`).
 - **Idioma de comunicação:** Portuguese (`_bmad/config.user.toml → [core].communication_language`).
 - **`project_name`:** `projeto_hdd`.
-- **`user_name`:** `paulotodo`.
+- **`user_name`:** `operador`.
 - **Skill level do usuário (bmm):** `intermediate`.
 - **Pastas de saída:**
   - `_bmad-output/planning-artifacts/` — PRD, arquitetura, épicos, histórias

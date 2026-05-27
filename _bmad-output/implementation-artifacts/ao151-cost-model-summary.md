@@ -6,7 +6,7 @@ data: 2026-05-26T00:00:00Z
 tier: B
 status: approved
 verdict: ready-to-merge
-aprovado_por: paulotodo
+aprovado_por: operador
 aprovado_em: 2026-05-26 (approve ao151)
 document_output_language: pt-PT
 ---

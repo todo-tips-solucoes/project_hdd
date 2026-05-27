@@ -106,7 +106,7 @@ Razão Medium: AO-164/165/166 referenciadas no mandate mas **não materializadas
 | B. Decisão arquitetural fatal 6m? | **No fatal tech debt** mas AO-86 SPoF deve ser resolvido Sprint 0 |
 | C. Rollback trivial 1h Day 5? | **Yes, mechanism exists; adequately specified Sprint 0 scope** |
 | D. Elicitation custou mais que valeu? | **No.** Process proporcionado à complexidade (87-FR autonomous pipeline solo sem team review). Marginal: AO-164/165/166 não materializadas é ineficiência honesta. |
-| E. paulotodo autorizado Sprint 0 amanhã? | **APPROVE-WITH-CONDITIONS** |
+| E. operador autorizado Sprint 0 amanhã? | **APPROVE-WITH-CONDITIONS** |
 
 ---
 

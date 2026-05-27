@@ -4,7 +4,7 @@ workflow: bmad-create-architecture
 step: 6
 round: 2
 date: 2026-05-21
-techniques: [reverse-engineering-m1, party-mode-qa-sprint-planner-future-paulotodo]
+techniques: [reverse-engineering-m1, party-mode-qa-sprint-planner-future-operador]
 status: pending-synthesis-approval
 ---
 
@@ -33,7 +33,7 @@ status: pending-synthesis-approval
 
 **→ AO-144:** `docs/m1-critical-path.md` com dependências AOs + gates por week + mitigações.
 
-## P — 3 perspectivas (QA + Sprint Planner + Future paulotodo)
+## P — 3 perspectivas (QA + Sprint Planner + Future operador)
 
 ### QA Agent introspecção
 
@@ -105,7 +105,7 @@ S01-S04 paralelos. S05 paralelo S04. S06 espera S02+S03+S04. S07 fecha sprint.
 
 **5 BLOCKERS do Planner:** epics formais (PRD §7 features não decompostos), context-bundle schema canónico, AO-86 ETA, sprint token budget máx, `docs/conventions/errors.md` + `review-rubric.md`.
 
-### Future paulotodo (2027-05-21, 1 year later)
+### Future operador (2027-05-21, 1 year later)
 
 **🔥 Devastatingly honest insights** — operador real após 1 ano vivendo com HDD + 1 colaborador (Rodrigo) + 1 produto MEDIPLAN entrado em Nov 2026.
 
@@ -135,12 +135,12 @@ S01-S04 paralelos. S05 paralelo S04. S06 espera S02+S03+S04. S07 fecha sprint.
 | # | Obrigação | Origem |
 |---|---|---|
 | **AO-144** | `docs/m1-critical-path.md` com dependências AOs + gates por week + mitigações | Reverse Engineering A |
-| **AO-145** | Context-bundle persisted TTL (6 semanas default) + comando `bun run purge-context` — **refina AO-143**; sem TTL torna-se debt silencioso | Future paulotodo |
-| **AO-146** | Resumos de Finalização Tier-A + AO-113 daily narrative em **formato curto FIXO** (5 bullets máx, não prosa). Long-form só Tier-C audit forensic | Future paulotodo |
-| **AO-147** | ADR momentum check: CI gate trimestral "última ADR > 60 dias + features merged ≥3" = warning. Evita ADR-fatigue após initial enthusiasm | Future paulotodo |
-| **AO-148** | Auto-archive policy `summaries/` — após 30d sem acesso → move para `summaries/archive/` separado para reduzir noise | Future paulotodo |
-| **AO-149** | `skills/` (BMB custom outputs) tem `README.md` index obrigatório — sem isso vira dark code em 6 meses | Future paulotodo |
-| **AO-150** | AO-122 max-lines aplicada em **manual edits** também — pre-commit hook (não só CI gate Dev agent). Author-bypass ("ninguém me chama") é falha real | Future paulotodo case study |
+| **AO-145** | Context-bundle persisted TTL (6 semanas default) + comando `bun run purge-context` — **refina AO-143**; sem TTL torna-se debt silencioso | Future operador |
+| **AO-146** | Resumos de Finalização Tier-A + AO-113 daily narrative em **formato curto FIXO** (5 bullets máx, não prosa). Long-form só Tier-C audit forensic | Future operador |
+| **AO-147** | ADR momentum check: CI gate trimestral "última ADR > 60 dias + features merged ≥3" = warning. Evita ADR-fatigue após initial enthusiasm | Future operador |
+| **AO-148** | Auto-archive policy `summaries/` — após 30d sem acesso → move para `summaries/archive/` separado para reduzir noise | Future operador |
+| **AO-149** | `skills/` (BMB custom outputs) tem `README.md` index obrigatório — sem isso vira dark code em 6 meses | Future operador |
+| **AO-150** | AO-122 max-lines aplicada em **manual edits** também — pre-commit hook (não só CI gate Dev agent). Author-bypass ("ninguém me chama") é falha real | Future operador case study |
 
 ### Refinamentos a AOs existentes
 
@@ -159,7 +159,7 @@ Adicionado em `architecture.md` Step 06 como referência canónica para Master A
 
 ### Lessons devastadoras para guardar
 
-**Future paulotodo case study revela 3 patterns que matam projetos solo:**
+**Future operador case study revela 3 patterns que matam projetos solo:**
 
 1. **Convention enforcement só funciona com CI HARD** — soft conventions (200 linhas, no mutable state) que dependem de "ninguém me chama à atenção" são violadas pelo próprio autor em meses.
 

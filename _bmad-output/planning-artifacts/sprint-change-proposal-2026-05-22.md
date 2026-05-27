@@ -5,7 +5,7 @@ project_name_official: "HORSE DRIVEN DEVELOPMENT (HDD)"
 workflow: bmad-correct-course
 workflow_id: course-correction-2026-05-22
 date: 2026-05-22
-operator: paulotodo
+operator: operador
 language: pt-PT
 scope: minor
 trigger: "Readiness check D-047/D-048 identificou C-1 (Major forward dep) + C-2 (Minor blocked_by texto livre)"

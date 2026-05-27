@@ -5,7 +5,7 @@ paused_at: 2026-05-20
 last_completed_step: Step 03 (Starter Template Evaluation)
 next_step: Step 04 (Architectural Decisions)
 current_workflow: bmad-create-architecture
-operator: paulotodo
+operator: operador
 ---
 
 # SESSION RESUME — HDD

@@ -19,7 +19,7 @@ tier_b_words: 720
 
 ## Tier-A — Glance
 
-> **Para:** Slack DM ao operador `paulotodo`. Decisão em ≤ 30s.
+> **Para:** Slack DM ao operador `operador`. Decisão em ≤ 30s.
 
 ```
 [⚠️] bmad-prd · projeto_hdd · 2026-05-20
@@ -76,7 +76,7 @@ Primeiro PRD do projeto HDD, na fase **Planejamento** do BMAD. Input único: `do
 
 - **Web research adiada** (D-006) — `.docx` auto-contido com 12 refs oficiais; OpenClaw+BMAD provados pelo próprio install. Risco aceito: drift de versão upstream — fica em O-9 para `bmad-architecture`.
 - **OpenClaw escolhido vs LangGraph/CrewAI/AutoGen** — plugin BMAD oficial existe e está alinhado com o método; alternativas exigiriam reimplementar gateway+sessions+plugin model. Custo: lock-in moderado num projeto upstream menos maduro que LangGraph.
-- **Single-operator no M0** (não multi-tenancy) — sem complexidade de RBAC/billing/permissions; entrega valor para `paulotodo` rapidamente. Custo: M2 terá retrabalho na camada de workspace isolation.
+- **Single-operator no M0** (não multi-tenancy) — sem complexidade de RBAC/billing/permissions; entrega valor para `operador` rapidamente. Custo: M2 terá retrabalho na camada de workspace isolation.
 - **NFR-P1/P2 mantidas com `[ASSUMPTION — calibrar]`** (não removidas) — sinalizam intent; piloto vai dar valores reais. Custo: ruído potencial se NFR não aplicar.
 - **Estilo capability-spec** (não user-journey-heavy) — produto é internal tool com single operator; UJs ficam em 4, não 12. Custo: se entrar revisor convidado mais cedo do que esperado, UX do canal precisa de mais detalhe.
 
@@ -95,7 +95,7 @@ Primeiro PRD do projeto HDD, na fase **Planejamento** do BMAD. Input único: `do
 
 ### Métricas
 - Janela LLM: ~3% estimado (Opus 4.7 1M context) — calibrar com tooling em M1
-- Duração: 1 sessão (~minutos contínuos com `paulotodo` activo)
+- Duração: 1 sessão (~minutos contínuos com `operador` activo)
 - Artefactos: 8 ficheiros (5 workspace + 3 templates/summary + 4 memórias persistentes)
 - Decisões: 19 (humanas em D-002/D-016/D-017/D-018/D-019 + interactivas; restantes automáticas/inferidas)
 - Open items: 10 originais → 6 abertos (40% resolvidos no próprio workflow)
@@ -196,4 +196,4 @@ Workflow inicial — sem revisões prévias. Esta é a 1ª aprovação solicitad
 ## Estado final do workflow
 
 **`paused-awaiting-review`** desde 2026-05-20.
-Aguardando `approve` ou `request_changes <nota>` do operador `paulotodo` para liberar `bmad-architecture` como próximo workflow.
+Aguardando `approve` ou `request_changes <nota>` do operador `operador` para liberar `bmad-architecture` como próximo workflow.

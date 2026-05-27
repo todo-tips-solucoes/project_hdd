@@ -6,7 +6,7 @@ version: 2
 created: 2026-05-20
 updated: 2026-05-20
 finalized: 2026-05-20
-authors: [paulotodo]
+authors: [operador]
 facilitator: bmad-prd (Claude Opus 4.7)
 language: pt-PT
 sources:
@@ -27,11 +27,11 @@ supersedes: "prd.md v1 (2026-05-20, status:final)"
 
 ## 1. Visão & Contexto
 
-**Tese.** O ciclo discovery+PRD do `paulotodo` é prazeroso e já funciona; o gargalo real é a **execução pós-escopo-definido** (codificar, testar, revisar, integrar) — 60-80% do calendário em trabalho de baixo retorno cognitivo. O pipeline HDD aposta que com **uma cisão estrita entre fase colaborativa e fase autónoma**, mais um **canal de interrupt onde o operador realmente responde em segundos (WhatsApp)**, é possível recuperar essas semanas sem perder controlo estratégico sobre produto e arquitetura.
+**Tese.** O ciclo discovery+PRD do `operador` é prazeroso e já funciona; o gargalo real é a **execução pós-escopo-definido** (codificar, testar, revisar, integrar) — 60-80% do calendário em trabalho de baixo retorno cognitivo. O pipeline HDD aposta que com **uma cisão estrita entre fase colaborativa e fase autónoma**, mais um **canal de interrupt onde o operador realmente responde em segundos (WhatsApp)**, é possível recuperar essas semanas sem perder controlo estratégico sobre produto e arquitetura.
 
 **HORSE DRIVEN DEVELOPMENT** (abreviado **HDD** — alinhado com `project_name=projeto_hdd`) é uma plataforma interna **bimodal**:
 
-- **Modo Colaborativo** (Fases BMAD 1-2: Análise + Planejamento) — `paulotodo` + agentes BMAD trabalham juntos no **Claude Code interactivo**. Aqui se define produto, PRD, arquitetura, épicos. **Sempre humano-no-loop.**
+- **Modo Colaborativo** (Fases BMAD 1-2: Análise + Planejamento) — `operador` + agentes BMAD trabalham juntos no **Claude Code interactivo**. Aqui se define produto, PRD, arquitetura, épicos. **Sempre humano-no-loop.**
 - **Modo Autónomo** (Fases BMAD 3-4: Solução + Implementação) — um **worker OpenClaw em VPS própria** assume após o `bmad-check-implementation-readiness`. Agentes Dev, Reviewer e QA executam stories sequencialmente, com **gates de qualidade entre handoffs**, sem supervisão contínua.
 
 A ponte entre os dois modos é o **canal de interrupt WhatsApp bidirecional** rodando no sistema próprio do operador. Critério único e restrito: **1 trigger primário + 3 watchdogs declarados no v1** (detalhe em §7.2).
@@ -44,14 +44,14 @@ A escolha **OpenClaw + plugin `BMAD_Openclaw`** (vs LangGraph/CrewAI/AutoGen ou 
 
 ### 2.1 Problema (do brief §The Problem)
 
-Para `paulotodo`, operando solo:
+Para `operador`, operando solo:
 
 1. **Tempo de execução pós-PRD é o maior incómodo.** Discovery + Planning consomem ~20% do calendário; implementação consome 60-80%.
 2. **Mecanismos atuais de delegação** (freelancers, agências) introduzem latência, retrabalho e custo desproporcional para projetos solo/MVP.
-3. **Ferramentas de IA contemporâneas** (Cursor, Copilot, Claude Code interactivo) aceleram tarefas isoladas, mas exigem **supervisão constante** — `paulotodo` continua a assistir o agente trabalhar; quebra de foco.
+3. **Ferramentas de IA contemporâneas** (Cursor, Copilot, Claude Code interactivo) aceleram tarefas isoladas, mas exigem **supervisão constante** — `operador` continua a assistir o agente trabalhar; quebra de foco.
 4. **Sem disciplina de qualidade entre fases, velocidade vira sujeira:** PRD diz X, agente Dev implementa Y, erro só aparece em produção.
 
-### 2.2 O que `paulotodo` NÃO quer resolver
+### 2.2 O que `operador` NÃO quer resolver
 
 - Disciplina de discovery/validação — já funciona; o "pre-mortem do facilitador" foi exagero (brief §Problem).
 - Construção de framework próprio — BMAD é suficiente.
@@ -67,19 +67,19 @@ A oportunidade é **costurar estas peças num pipeline operacional bimodal** com
 
 ### 3.1 Três princípios não-negociáveis (do brief §What Makes This Different)
 
-- **P-1.** **Produto e arquitetura são SEMPRE colaborativos.** `paulotodo` não cede essas decisões aos agentes. O modo autónomo só toca *execução* dentro de fronteiras já desenhadas.
+- **P-1.** **Produto e arquitetura são SEMPRE colaborativos.** `operador` não cede essas decisões aos agentes. O modo autónomo só toca *execução* dentro de fronteiras já desenhadas.
 - **P-2.** **Critério de interrupt explícito e auditável.** Não é lista emergente de 20+ heurísticas — é **1 trigger primário + 3 watchdogs declarados no v1**. Fácil de implementar no `bmad-code-review`; fácil de revisar quando o pipeline falhar.
 - **P-3.** **Canal de interrupt é onde o utilizador REALMENTE responde rápido.** **WhatsApp** — não Slack nem e-mail. Stack já existente, sem nova ferramenta. E-mail é apenas fallback (S3).
 
 ### 3.2 Objetivos
 
-- **G-1** — Permitir que `paulotodo` opere o ciclo Brief→PRD→Architecture→Epics→Readiness no Claude Code interactivo (Modo Colaborativo) e depois dispare o worker autónomo (Modo Autónomo) para executar stories até deploy.
+- **G-1** — Permitir que `operador` opere o ciclo Brief→PRD→Architecture→Epics→Readiness no Claude Code interactivo (Modo Colaborativo) e depois dispare o worker autónomo (Modo Autónomo) para executar stories até deploy.
 - **G-2** — Garantir trilha auditável (decision-log + state persistente + JSONL audit log) que permita inspecionar, reverter ou re-executar qualquer fase.
 - **G-3** — Operar **single-provider Anthropic**, sem multi-provider no v1 (D-017). Budget é **híbrido** (D-050): janela Max 20x no planejamento + fallback; USD metered (API) na implementação, dentro de cost cap mensal.
 - **G-4** — Confiabilidade operacional: estado sobrevive a crash do worker, falha de rede ou WhatsApp; fallback automático para e-mail (S3) **mantém o pipeline a correr** (não pausa).
 - **G-5** — Conformidade com os 3 princípios não-negociáveis (P-1/P-2/P-3 são gates: violação = bloqueia release).
 
-### 3.3 Marcos & Métricas (do brief §Success Criteria, vinculados a `paulotodo`)
+### 3.3 Marcos & Métricas (do brief §Success Criteria, vinculados a `operador`)
 
 | Marco | Quando | Métrica | Counter-métrica |
 |---|---|---|---|
@@ -100,7 +100,7 @@ A oportunidade é **costurar estas peças num pipeline operacional bimodal** com
 
 ## 4. Personas
 
-### Persona primária — **`paulotodo`**
+### Persona primária — **`operador`**
 - Solo founder/desenvolvedor com tese multi-produto.
 - Nível **intermediate** em BMAD (config `[bmm].skill_level=intermediate`).
 - Full-stack.
@@ -156,13 +156,13 @@ A oportunidade é **costurar estas peças num pipeline operacional bimodal** com
 ## 6. Casos de Uso / User Journeys
 
 ### UJ-1 — Modo Colaborativo: Brief → PRD → Architecture → Epics → Readiness
-1. `paulotodo` invoca `bmad-product-brief` (ou já tem brief) no Claude Code.
+1. `operador` invoca `bmad-product-brief` (ou já tem brief) no Claude Code.
 2. Sequência: `bmad-prd` → `bmad-create-architecture` → `bmad-create-epics-and-stories` → `bmad-check-implementation-readiness`.
 3. Cada finalização exige revisão humana + **Resumo de Finalização 3-tier** (D-019, §7.8).
 4. Sucesso de `bmad-check-implementation-readiness` é o **gate de transição** para o modo Autónomo.
 
 ### UJ-2 — Modo Autónomo: worker em VPS executa stories
-1. `paulotodo` dispara o worker via script no VPS (`hdd-worker start <project-id>`).
+1. `operador` dispara o worker via script no VPS (`hdd-worker start <project-id>`).
 2. Worker chama BMad Master no plugin `BMAD_Openclaw`: `bmad-sprint-planning` → loop por story (`bmad-dev-story` → `bmad-code-review` → `bmad-testarch-*`).
 3. Cada handoff entre agentes passa por um **gate de qualidade** (§7.6).
 4. Worker progride sem supervisão até atingir um trigger de interrupt (UJ-3) ou concluir todas as stories.
@@ -172,8 +172,8 @@ A oportunidade é **costurar estas peças num pipeline operacional bimodal** com
 1. Worker está a executar Story #42 (auth flow); chama `bmad-code-review`.
 2. Reviewer deteta que o PRD não especifica se OAuth2 aceita Google+GitHub ou só Google — **gap PRD/Arq ↔ Código**.
 3. Worker → state store: `paused_for_interrupt=true`, snapshot do contexto.
-4. Worker → WhatsApp adapter: envia mensagem ao `paulotodo` com contexto da ambiguidade.
-5. `paulotodo` lê no telemóvel, responde: *"Só Google. Adicione GitHub no addendum como roadmap pós-MVP."*
+4. Worker → WhatsApp adapter: envia mensagem ao `operador` com contexto da ambiguidade.
+5. `operador` lê no telemóvel, responde: *"Só Google. Adicione GitHub no addendum como roadmap pós-MVP."*
 6. WhatsApp → webhook listener → state store: pop pending interrupt, injeta resposta.
 7. Worker aplica decisão: atualiza `addendum.md` do PRD, atualiza arquitetura se necessário, retoma story.
 
@@ -214,7 +214,7 @@ A oportunidade é **costurar estas peças num pipeline operacional bimodal** com
 - **FR-017.** Outros gatilhos (custo estimado de stack, conflito entre artefactos canónicos) ficam para **v1.1** — não implementar no v1.
 
 ### 7.3 Feature — Canal WhatsApp (via app proprietário do operador) + fallback e-mail
-- **FR-020.** O sistema **NÃO fala directamente com a Meta Cloud API**. Usa o **app proprietário do operador `paulotodo` em `clihelper.example.com`** como camada de abstração (D-033). A app do operador trata WABA, número certificado, display name, templates registados, quality rating, pricing Meta, janela 24h. **HDD = HTTP client simples.**
+- **FR-020.** O sistema **NÃO fala directamente com a Meta Cloud API**. Usa o **app proprietário do operador `operador` em `clihelper.example.com`** como camada de abstração (D-033). A app do operador trata WABA, número certificado, display name, templates registados, quality rating, pricing Meta, janela 24h. **HDD = HTTP client simples.**
 - **FR-021.** O WhatsApp adapter faz `POST` aos endpoints:
   - **Template com variável:** `https://clihelper.example.com/principal/apis/mensagem/api-oficial-mensagem-template/`
   - **Template sem variável:** `https://clihelper.example.com/principal/apis/mensagem/api-oficial-mensagem-template-sem-variavel/`
@@ -239,7 +239,7 @@ A oportunidade é **costurar estas peças num pipeline operacional bimodal** com
 - **FR-040.** O state store persiste no mínimo: `current_story_id`, `story_status`, `paused_for_interrupt`, `last_interrupt_at`, `interrupt_pending_id`, `retry_count`, `current_workflow`, `current_phase`.
 - **FR-041.** Cada **story** é **idempotente** — re-executar a mesma story após crash não duplica side-effects (commits, mensagens, artefactos).
 - **FR-042.** Tecnologia do state store: **Redis ou SQLite** — escolha em arquitetura (`[OPEN — arq-Q4 do brief]`).
-- **FR-043.** O sistema deve permitir **rollback parcial**: se `paulotodo` responder algo no WhatsApp que invalida 3 stories já feitas, política de rollback decide o que re-executar (`[OPEN — arq-Q5 do brief]` — estratégia em arquitetura).
+- **FR-043.** O sistema deve permitir **rollback parcial**: se `operador` responder algo no WhatsApp que invalida 3 stories já feitas, política de rollback decide o que re-executar (`[OPEN — arq-Q5 do brief]` — estratégia em arquitetura).
 - **FR-044.** **Audit log JSONL**: cada decisão do agente, cada interrupt, cada resposta — uma linha por evento, em `_bmad-output/audit/<project>/<date>.jsonl`.
 
 ### 7.6 Feature — Gates de qualidade nos handoffs (P-2 do brief)
@@ -318,7 +318,7 @@ A oportunidade é **costurar estas peças num pipeline operacional bimodal** com
 - **NFR-M3.** Plugin BMAD_Openclaw versão pinada explicitamente no setup do worker.
 
 ### 8.6 Usabilidade
-- **NFR-U1.** `paulotodo` responde a interrupts pelo **telemóvel** (WhatsApp) — sem instalar nada além do já existente.
+- **NFR-U1.** `operador` responde a interrupts pelo **telemóvel** (WhatsApp) — sem instalar nada além do já existente.
 - **NFR-U2.** Mensagens WhatsApp em português (idioma `[core].communication_language`).
 - **NFR-U3.** Tier-A do Resumo de Finalização ≤ 200 palavras (decisão em 30s no telemóvel).
 - **NFR-U4.** Comandos do worker (`hdd-worker start/pause/resume/status/logs`) com `--help` claro.
@@ -353,7 +353,7 @@ A oportunidade é **costurar estas peças num pipeline operacional bimodal** com
 |---|---|---|---|---|
 | R-1 | ~~Sistema WhatsApp não-oficial banido pela Meta~~ → **Endpoint clihelper indisponível ou rate-limit excedido** | Baixa | Médio | Fallback Resend (S3) automático; leaky bucket queue no adapter (FR-025); health-check periódico do endpoint (AO-7') |
 | R-2 | Worker fica empacado às 3h sem trigger primário disparar | Média | Alto | Watchdog timeout S1 (default 30 min) |
-| R-3 | `paulotodo` responde algo que invalida 3 stories já feitas | Média | Médio | Política de rollback parcial — definir em arquitetura |
+| R-3 | `operador` responde algo que invalida 3 stories já feitas | Média | Médio | Política de rollback parcial — definir em arquitetura |
 | R-4 | BMAD upstream lança breaking change | Alta | Médio | Pin de versão; release atualizado em ciclo de retrospectiva |
 | R-5 | Acumulação de interrupts não resolvidos | Média | Médio | Métrica visível "interrupts pendentes" no log; alerta em critérios M1 |
 | R-6 | Loop de sub-agente / consumo descontrolado de janela | Média | Alto | Cost cap por workflow (% janela); FR-061/062 |
@@ -426,7 +426,7 @@ A oportunidade é **costurar estas peças num pipeline operacional bimodal** com
 | # | Localização | Conteúdo | Estado | Origem |
 |---|---|---|---|---|
 | ~~A-01~~ | §1 | Naming = HDD | ✅ D-016 |
-| A-02 | §3 M0 | Baseline = ? dias úteis | ⏳ pendente registo `paulotodo` |
+| A-02 | §3 M0 | Baseline = ? dias úteis | ⏳ pendente registo `operador` |
 | ~~A-03~~ | §3 M3 | 4× mais rápido que baseline | confirmado pelo brief |
 | ~~A-04~~ | §3 | Budget em janela, não USD | ✅ D-017 |
 | ~~A-05~~ | §5 | Single-operator no v1 | ✅ brief + D-018 |
@@ -436,7 +436,7 @@ A oportunidade é **costurar estas peças num pipeline operacional bimodal** com
 | A-09 | §7.7 FR-064 | Opus/Sonnet/Haiku por papel | mantido |
 | A-10 | §8.2 NFR-R2 | Retry exp 2s/5/60s | calibrar em arquitetura |
 | A-11 | §8.4 NFR-P1/P2 | Cold start ≤30s; latência ≤10s | calibrar com piloto |
-| ~~A-12~~ | §4 | Persona = solo `paulotodo` | ✅ brief explícito |
+| ~~A-12~~ | §4 | Persona = solo `operador` | ✅ brief explícito |
 | A-13 | §7.2 FR-011 | Watchdog default 30 min | confirmar com brief |
 | A-14 | §7.4 FR-030 | Worker em VPS própria | ✅ brief + D-023 |
 

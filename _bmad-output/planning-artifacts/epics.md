@@ -182,7 +182,7 @@ spec — HDD v1 não tem UI (NFR-O5: observability via JSONL + WhatsApp + Resumo
 
 #### NFR-U — Usabilidade
 
-- **NFR-U1** `paulotodo` responde a interrupts pelo **telemóvel** (WhatsApp).
+- **NFR-U1** `operador` responde a interrupts pelo **telemóvel** (WhatsApp).
 - **NFR-U2** Mensagens WhatsApp em português (`pt-PT` / `pt_BR` no clihelper template language code).
 - **NFR-U3** Tier-A do Resumo ≤ 200 palavras (decisão em 30s no telemóvel).
 - **NFR-U4** Comandos `hdd-worker start/pause/resume/status/logs` com `--help` claro.
@@ -270,7 +270,7 @@ spec — HDD v1 não tem UI (NFR-O5: observability via JSONL + WhatsApp + Resumo
 
 #### H. Topologia inbound/outbound
 
-- **AR-100** **Outbound:** HDD worker → `POST https://api.example.com/principal/apis/mensagem/...` → clihelper backend → Meta Cloud API → telemóvel `paulotodo`. **Rate-limit 1 req/s.**
+- **AR-100** **Outbound:** HDD worker → `POST https://api.example.com/principal/apis/mensagem/...` → clihelper backend → Meta Cloud API → telemóvel `operador`. **Rate-limit 1 req/s.**
 - **AR-101** **Inbound:** telemóvel → Meta Cloud API → **n8n.example.com** (aggregator filter + forward) → HDD `POST /callback` (Hono) com Zod minimal schema **drop-at-ingress**. n8n = trust boundary upstream.
 
 #### I. Bootstrap & runbooks (Step 04)
@@ -393,7 +393,7 @@ audit JSONL com hash chain + RFC 3161, **gerador Resumo 3-tier Tier-B/C**
 + `fsm.ts`** (resolvem acoplamento E3↔E4), 3 Sprint 0 BLOCKERS de safety
 (path traversal, two-step confirmation, redaction multi-pattern), bootstrap
 systemd + secrets, runbooks must-have, CI GitHub Actions — antes de qualquer
-feature work. Encerrado o epic, `paulotodo` consegue correr `bun test` verde,
+feature work. Encerrado o epic, `operador` consegue correr `bun test` verde,
 deploy via SSH restricted, e o `bmad-cli` non-interactive está validado (ou
 Plan B activado).
 
@@ -467,7 +467,7 @@ self-check), watchdog timer S1 (30 min default), contador retries S2 (5
 consecutivas), timeout-poll S3 (3 mensagens / 10 min sem confirmação WhatsApp
 → Resend fallback), state pause `paused_for_interrupt=true`, diagnóstico
 estruturado em falha de gate Review→QA. Encerrado o epic, worker pausa
-inteligentemente e contacta `paulotodo` quando preciso — e troca canal sem
+inteligentemente e contacta `operador` quando preciso — e troca canal sem
 parar quando o WhatsApp falha.
 
 **FRs covered:** FR-010..017, FR-050 (Review→QA gate), FR-052
@@ -643,7 +643,7 @@ E5, E6.a paralelos no Sprint 1. E6.b + v1.1+ items deferred.
 
 ### Story 1.a.1: Bun base scaffold + linting + test runner
 
-As a `paulotodo`,
+As a `operador`,
 I want a Bun 1.3+ project scaffold com Biome, typescript-eslint async-safety rules e `bun test` configurado,
 So that toda story subsequente pode compilar, lintar e testar em ambiente reproduzível.
 
@@ -835,7 +835,7 @@ So that fail-closed em credenciais missing + sem state corruption em SIGTERM.
 
 ### Story 1.a.8: Resumo 3-tier Tier-B/C gerador + CLI review
 
-As a `paulotodo`,
+As a `operador`,
 I want um gerador automático de Resumos 3-tier (Tier-B briefing + Tier-C full) committed em git ao concluir qualquer workflow, e um CLI `hdd-worker review approve|request-changes <note>|reject <reason>` para parsing de aprovação textual,
 So that D-019 (revisão obrigatória) está enforced desde Day 1 do Sprint 0, antes do template WhatsApp `hdd_summary_finalization` estar aprovado.
 
@@ -959,7 +959,7 @@ So that LLM-generated diff não consegue escrever fora do workspace (AO-158+165 
 
 ### Story 1.b.2: Two-step confirmation acções irreversíveis
 
-As a `paulotodo`,
+As a `operador`,
 I want que toda acção irreversível (deploy, branch delete, force push, schema drop) exija 2-step confirmation via WhatsApp Quick Reply OU CLI `--i-really-mean-it`,
 So that LLM-driven worker não pode executar destrutiva sem aprovação humana explícita (AO-155+164 DRB BLOCKER).
 
@@ -1042,7 +1042,7 @@ So that LLM-generated code não consegue exfiltrar dados nem aceder host filesys
 
 ### Story 1.b.5: 8 Pentest Tasks PT-1..PT-8 test suite
 
-As a `paulotodo`,
+As a `operador`,
 I want um `bun test:security` que executa PT-1..PT-8 (sandbox escape, path traversal, redaction, SSRF, prompt injection rebuff, audit tamper, secret extraction, rate-limit bypass),
 So that ao assinar M1 tenho assurance verificável que os 8 vectors mais relevantes estão fechados.
 
@@ -1075,7 +1075,7 @@ So that ao assinar M1 tenho assurance verificável que os 8 vectors mais relevan
 
 ### Story 1.c.1: systemd unit Type=simple + /healthz endpoint
 
-As a `paulotodo` (operations),
+As a `operador` (operations),
 I want systemd unit `hdd-worker.service` (Type=simple) + Hono `/healthz` endpoint pollável por Healthchecks.io,
 So that worker é supervisionado sem `sd_notify` (Bun gotcha) e operador é notificado em flap.
 
@@ -1100,7 +1100,7 @@ So that worker é supervisionado sem `sd_notify` (Bun gotcha) e operador é noti
 
 ### Story 1.c.2: Secrets management EnvironmentFile
 
-As a `paulotodo` (operations),
+As a `operador` (operations),
 I want secrets em `/etc/hdd/secrets.env` (perm 0600, user `hdd-worker`, ConditionPathExists no systemd) + validação envalid/Zod no boot,
 So that segredos nunca aparecem em workspace nem ficam acessíveis a outro user na VPS.
 
@@ -1125,7 +1125,7 @@ So that segredos nunca aparecem em workspace nem ficam acessíveis a outro user 
 
 ### Story 1.c.3: Litestream supervisor + R2 EU + rclone
 
-As a `paulotodo` (operations),
+As a `operador` (operations),
 I want Litestream streaming WAL → Cloudflare R2 EU + rclone secundário (dump diário gzipped) + runbook de restore,
 So that crash de VPS ou disk failure não perde state nem audit.
 
@@ -1149,7 +1149,7 @@ So that crash de VPS ou disk failure não perde state nem audit.
 
 ### Story 1.c.4: CI GitHub Actions + bun build --compile + Renovate
 
-As a `paulotodo`,
+As a `operador`,
 I want GitHub Actions workflow que corre lint + test (incl. security suite) + `bun build --compile` + Docker pre-pull em <60s, com Renovate config para dependency updates,
 So that toda push valida invariantes antes de merge e dependências ficam actualizadas com PR automático.
 
@@ -1174,7 +1174,7 @@ So that toda push valida invariantes antes de merge e dependências ficam actual
 
 ### Story 1.c.5: SSH restricted deploy
 
-As a `paulotodo`,
+As a `operador`,
 I want SSH `authorized_keys` com `command="/opt/hdd/scripts/deploy.sh"` restriction + script regista commit SHA no audit JSONL,
 So that operador faz deploy via `ssh hdd-worker@vps deploy` sem expor shell livre.
 
@@ -1198,9 +1198,9 @@ So that operador faz deploy via `ssh hdd-worker@vps deploy` sem expor shell livr
 
 ### Story 1.c.6: 8 Runbooks must-have
 
-As a `paulotodo` (futuro 1 ano depois ou colaborador eventual),
+As a `operador` (futuro 1 ano depois ou colaborador eventual),
 I want 8 runbooks em `docs/runbooks/`: `secret-rotation`, `ban-Anthropic-emergency`, `litestream-restore`, `hash-chain-corruption`, `whatsapp-template-rejection`, `clihelper-endpoint-down`, `vps-disk-full`, `manual-rollback`,
-So that incident response não depende de memória dum único humano (Future paulotodo lesson).
+So that incident response não depende de memória dum único humano (Future operador lesson).
 
 **StorySpec:**
 - type: `foundational` · epic: E1.c · sprint: 0 · pri_feature: F9
@@ -1218,7 +1218,7 @@ So that incident response não depende de memória dum único humano (Future pau
 
 ### Story 1.c.7: bmad-cli smoke test + Plan B fork docs
 
-As a `paulotodo` (Sprint 0 Day 1 ou final close),
+As a `operador` (Sprint 0 Day 1 ou final close),
 I want um smoke test que verifica `bmad-cli` non-interactive funciona end-to-end OU activa Plan B (Claude Code headless / re-implement subset),
 So that Sprint 0 close confirma o invariante operacional crítico do worker (sem isto, E2 BMAD invoker é impossível).
 
@@ -1249,7 +1249,7 @@ So that Sprint 0 close confirma o invariante operacional crítico do worker (sem
 
 ### Story 2.1: hdd-worker CLI Commander scaffold
 
-As a `paulotodo`,
+As a `operador`,
 I want `hdd-worker` CLI Commander com subcomandos `start <project>`, `pause`, `resume`, `status`, `logs`, `review approve|request-changes|reject`,
 So that opero o worker via terminal sem invocar TypeScript directamente.
 
@@ -1381,7 +1381,7 @@ So that Review não recebe diff broken nem code com lint errors (FR-050 part 2).
 
 ### Story 2.6: Worker lifecycle start/pause/resume
 
-As a `paulotodo`,
+As a `operador`,
 I want `hdd-worker start`, `pause`, `resume` que persiste state em db e sobrevive crash,
 So that posso parar overnight e continuar manhã sem perder progresso.
 
@@ -1494,7 +1494,7 @@ So that não excedemos rate-limit e falhas transitórias não cascateiam para FS
 
 ### Story 3.3: 6 templates UTILITY — design + register tracking
 
-As a `paulotodo` (operations),
+As a `operador` (operations),
 I want especificação e tracking de submissão dos 6 templates UTILITY (`hdd_interrupt_p1`, `hdd_interrupt_s1`, `hdd_interrupt_s2`, `hdd_summary_finalization`, `hdd_heartbeat`, `hdd_release_final`),
 So that operador submete a Meta no clihelper UI e M1 mínimo (3 aprovados) é trackable.
 
@@ -1518,7 +1518,7 @@ So that operador submete a Meta no clihelper UI e M1 mínimo (3 aprovados) é tr
 
 ### Story 3.4: InboundCommandPort + Hono /callback + Quick Reply parsing
 
-As a `paulotodo`,
+As a `operador`,
 I want endpoint `POST /callback` (Hono) que recebe callbacks do app operador, valida Zod minimal schema **drop-at-ingress**, parseia Quick Reply payloads contra `interrupt-commands.ts` contract,
 So that respostas no telemóvel chegam ao worker como events tipados.
 
@@ -1769,7 +1769,7 @@ So that crash de VPS / kill -9 / network blip não perde progresso de story.
 
 ### Story 5.2: Crash drill test suite
 
-As a `paulotodo`,
+As a `operador`,
 I want suite `bun test:crash` que executa 4 cenários de `kill -9` em pontos identificados (entre commit/side-effect, durante POST WhatsApp, entre retries, em audit append) e valida no duplicates + no losses pós-restart,
 So that tenho assurance documentada de idempotência por story.
 
@@ -1861,7 +1861,7 @@ So that worker usa modelo+modo certo por papel com custo controlado (cost cap US
 
 ### Story 6.a.2: Telemetry % janela por sub-agente
 
-As a `paulotodo`,
+As a `operador`,
 I want telemetry que regista tokens in/out por sub-agente e workflow, computa estimate % de janela Max 20x consumida (5h window),
 So that operador vê consumo em `hdd-worker status` e logs JSONL.
 
@@ -1885,7 +1885,7 @@ So that operador vê consumo em `hdd-worker status` e logs JSONL.
 
 ### Story 6.a.3: 80% notification + pause hardcoded em exhausted
 
-As a `paulotodo`,
+As a `operador`,
 I want notificação WhatsApp em 80% da janela diária + pause automática em window-exhausted (sem downgrade ainda — E6.b),
 So that demo M1 com 4+ stories cumulativas não bate janela silenciosamente.
 
@@ -1939,7 +1939,7 @@ So that pipeline pode continuar degraded em vez de parar até reset/reabastecime
 
 ### Story 6.b.2: --hard-stop flag CI mode + Plan B runbook
 
-As a `CI / paulotodo`,
+As a `CI / operador`,
 I want flag `hdd-worker start --hard-stop` que em window-exhausted termina o processo com exit code não-zero em vez de pausar + runbook `ban-Anthropic-emergency.md`,
 So that CI / cron jobs não ficam pendurados, e operador tem plan B documentado em ban Anthropic (ACCEPTED RISK D-032).
 
@@ -1966,7 +1966,7 @@ So that CI / cron jobs não ficam pendurados, e operador tem plan B documentado 
 
 ### Story 7.b.1: Tier-A generator ≤200 palavras + WhatsApp envio
 
-As a `paulotodo`,
+As a `operador`,
 I want gerador Tier-A ≤200 palavras alimentado por Tier-B (resumir Tier-B → Tier-A via Haiku) + envio via template `hdd_summary_finalization` quando aprovado por Meta,
 So that recebo Tier-A no telemóvel e decido em 30s.
 
@@ -2015,7 +2015,7 @@ So that operador aprova workflow no telemóvel com 1 click sem digitar.
 
 ### Story 7.b.3: 8 Pentest Tasks final sign-off pré-M1
 
-As a `paulotodo`,
+As a `operador`,
 I want execução final + sign-off documentado das 8 Pentest Tasks PT-1..PT-8 antes de marcar M1 done,
 So that assino M1 com evidência verificável (gate AR-076 closed).
 

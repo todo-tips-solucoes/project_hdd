@@ -14,7 +14,7 @@ status: pending-synthesis-approval
 12 challenges sérios contra o verdict optimista. Honest re-assessment:
 
 **Verdicts honestos:**
-- **Verdadeiro:** 144 AOs cognitive load (futurepaulotodo provou autor violou próprias AOs); AO-86 SPoF sub-mitigado; schemas formais não testados; Bun runtime exotic bug risk; Sprint 0 prereqs adiciona 1-2 semanas
+- **Verdadeiro:** 144 AOs cognitive load (futureoperador provou autor violou próprias AOs); AO-86 SPoF sub-mitigado; schemas formais não testados; Bun runtime exotic bug risk; Sprint 0 prereqs adiciona 1-2 semanas
 - **Parcialmente verdadeiro:** 9 rondas elicitation/16 perspectivas (últimas 2-3 adicionaram valor real); meta-dogfood circular dependency (mitigável)
 - **Discutível:** "simpler alternative test" (operador escolheu OpenClaw+BMAD, decisão explícita)
 

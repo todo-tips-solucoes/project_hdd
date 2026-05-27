@@ -9,7 +9,7 @@ purpose: Captura conteúdo que pertence a PRD/Arquitetura downstream, não ao br
 
 # Addendum — Detalhes técnicos para PRD/Arquitetura
 
-Conteúdo que paulotodo trouxe durante a Discovery e que pertence a documentos downstream (PRD, Arquitetura, Sprint Planning), não ao brief de 1-2 páginas. Os agentes BMAD subsequentes (`bmad-prd`, `bmad-create-architecture`) devem ler este addendum.
+Conteúdo que operador trouxe durante a Discovery e que pertence a documentos downstream (PRD, Arquitetura, Sprint Planning), não ao brief de 1-2 páginas. Os agentes BMAD subsequentes (`bmad-prd`, `bmad-create-architecture`) devem ler este addendum.
 
 ---
 
@@ -17,14 +17,14 @@ Conteúdo que paulotodo trouxe durante a Discovery e que pertence a documentos d
 
 | Item | Valor |
 |---|---|
-| **Provedor** | Sistema proprietário do paulotodo (não Z-API, não Evolution API, não Twilio, não Cloud API oficial) |
+| **Provedor** | Sistema proprietário do operador (não Z-API, não Evolution API, não Twilio, não Cloud API oficial) |
 | **Bidirecionalidade** | Confirmada (envia E recebe) |
-| **Hosting** | VPS própria do paulotodo |
+| **Hosting** | VPS própria do operador |
 | **Status do número** | Aprovado e operacional hoje |
 | **Modo de envio** | Texto livre (presume-se que não há lock-in de templates aprovados, como ocorre na Cloud API oficial) |
 | **Modo de recebimento** | Webhook HTTP — endpoint a ser exposto pelo worker OpenClaw |
 
-**Implicação arquitetural:** o brief assume controle total da stack WhatsApp. Sem rate limits documentados de provedor terceiro, sem expiração de sessão imprevisível, sem template approval flow. paulotodo controla a confiabilidade do canal.
+**Implicação arquitetural:** o brief assume controle total da stack WhatsApp. Sem rate limits documentados de provedor terceiro, sem expiração de sessão imprevisível, sem template approval flow. operador controla a confiabilidade do canal.
 
 > Para risco de banimento por uso de protocolo não-oficial, ver **§6 Riscos operacionais** — tratado lá de forma consolidada com mitigação e decisão pendente.
 
@@ -52,12 +52,12 @@ Critério de decisão sugerido: precisão (falsos positivos/negativos) × custo 
 | Gatilho | Comportamento |
 |---|---|
 | Falhas de teste reincidentes | Após 5 tentativas sem progresso da mesma falha, interrupt. |
-| API externa indisponível ≥ 30 min | Worker pausa; interrupt opcional (paulotodo configura). |
+| API externa indisponível ≥ 30 min | Worker pausa; interrupt opcional (operador configura). |
 | Custo estimado de uma decisão de stack > R$ X/mês | Interrupt. X a definir. |
 | Conflito direto entre arquivos canônicos | Interrupt obrigatório. |
 | Worker sem progresso > Y minutos | Watchdog dispara interrupt. Y a definir. |
 
-paulotodo confirmou ("tudo que falou faz sentido"); o foco principal permanece o trigger primário (gap PRD vs. code).
+operador confirmou ("tudo que falou faz sentido"); o foco principal permanece o trigger primário (gap PRD vs. code).
 
 ## 3. Arquitetura proposta do worker autônomo
 
@@ -68,7 +68,7 @@ paulotodo confirmou ("tudo que falou faz sentido"); o foco principal permanece o
 - **Worker** rodando em VPS própria (Node ou Python — escolha em arquitetura). Executa loop de stories.
 - **State store:** Redis ou SQLite local para `current_story_id`, `story_status`, `paused_for_interrupt`, `last_interrupt_at`.
 - **Logger:** arquivo estruturado JSONL para audit trail (cada decisão do agente, cada interrupt, cada resposta).
-- **WhatsApp adapter:** módulo que fala com o sistema proprietário do paulotodo (REST API interna a documentar).
+- **WhatsApp adapter:** módulo que fala com o sistema proprietário do operador (REST API interna a documentar).
 - **Webhook listener:** endpoint HTTP que recebe mensagens entrantes do WhatsApp e injeta no contexto do agente.
 - **BMAD invoker:** dispara skills BMAD via API local (**a definir** se o BMAD instalado permite invocação programática ou se requer um CLI-wrapper).
 
@@ -77,12 +77,12 @@ paulotodo confirmou ("tudo que falou faz sentido"); o foco principal permanece o
 ```
 worker → BMAD code-review skill → detecta gap
 worker → state store: paused_for_interrupt=true, save context
-worker → WhatsApp adapter: envia mensagem ao paulotodo
+worker → WhatsApp adapter: envia mensagem ao operador
             "Story #42 (auth flow): code-review detectou ambiguidade.
              PRD não especifica se OAuth2 deve aceitar Google + GitHub
              ou só Google. Como prosseguir?"
-[paulotodo lê no celular, responde]
-paulotodo → "Só Google. Adicione GitHub no addendum como roadmap pós-MVP."
+[operador lê no celular, responde]
+operador → "Só Google. Adicione GitHub no addendum como roadmap pós-MVP."
 WhatsApp → webhook listener
 webhook → state store: pop pending interrupt, inject response
 worker → BMAD skill: aplica decisão, atualiza addendum.md, retoma story
@@ -94,7 +94,7 @@ worker → continua execução
 | Falha | Comportamento proposto | Decisão pendente |
 |---|---|---|
 | WhatsApp down ou banido | Após 3 falhas em 10 min, fallback automático para e-mail (S3 do brief). Worker NÃO para. | Provedor de e-mail a definir em arquitetura. |
-| paulotodo não responde em N horas | Worker continua tentativas em backoff exponencial; após T horas, pausa story e escala próxima. | N e T a definir. |
+| operador não responde em N horas | Worker continua tentativas em backoff exponencial; após T horas, pausa story e escala próxima. | N e T a definir. |
 | Resposta ambígua do usuário | Agente responde com clarificação via WhatsApp (mensagem follow-up: *"não entendi X, pode esclarecer?"*). | Limite de rounds de clarificação a definir. |
 
 ## 4. Integração BMAD ↔ Worker
@@ -111,13 +111,13 @@ worker → continua execução
 
 ### 4.2 Sincronização de artefatos
 
-- Workspace canônico: `/var/lib/projeto_hdd/_bmad-output/` no ambiente local de paulotodo.
+- Workspace canônico: `/var/lib/projeto_hdd/_bmad-output/` no ambiente local de operador.
 - Worker em VPS própria precisa de cópia sincronizada — Git? rsync? Volume montado? Decisão em arquitetura.
 - Após o worker autônomo terminar, sync de volta para local antes da retrospectiva.
 
 ## 5. Tópicos para `bmad-prd`
 
-Quando paulotodo for rodar `bmad-prd` para o projeto-piloto, este addendum sinaliza requisitos não-funcionais que entram no PRD:
+Quando operador for rodar `bmad-prd` para o projeto-piloto, este addendum sinaliza requisitos não-funcionais que entram no PRD:
 
 - **RNF-1:** O pipeline deve operar sem necessidade de supervisão humana contínua durante Fases 3-4.
 - **RNF-2:** O canal WhatsApp deve garantir entrega de interrupt em < 30s (SLA do sistema próprio).
@@ -131,8 +131,8 @@ Quando paulotodo for rodar `bmad-prd` para o projeto-piloto, este addendum sinal
 
 | Risco | Mitigação proposta | Decisão pendente |
 |---|---|---|
-| Sistema WhatsApp não-oficial banido pela Meta (Baileys, whatsapp-web.js e similares não oficiais) | Fallback automático para e-mail no v1 (S3 do brief); Telegram considerado para a v1.1 | paulotodo decide se aceita risco residual no v1 |
+| Sistema WhatsApp não-oficial banido pela Meta (Baileys, whatsapp-web.js e similares não oficiais) | Fallback automático para e-mail no v1 (S3 do brief); Telegram considerado para a v1.1 | operador decide se aceita risco residual no v1 |
 | Worker fica empacado às 3 h da manhã sem trigger primário disparar | Watchdog timeout (gatilho secundário S1) | Definir Y em arquitetura |
-| paulotodo responde algo no WhatsApp que invalida stories já feitas | Política de rollback parcial | Estratégia em arquitetura |
+| operador responde algo no WhatsApp que invalida stories já feitas | Política de rollback parcial | Estratégia em arquitetura |
 | BMAD upstream lança breaking change | Pin de versão; atualizar release no ciclo de retrospectiva | Operacional, não bloqueador |
 | Acúmulo de interrupts não resolvidos | Métrica visível: "interrupts pendentes" no log | Adicionar aos critérios de sucesso do M1 |

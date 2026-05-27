@@ -13,7 +13,7 @@ endpoint_send_with_vars: "https://clihelper.example.com/principal/apis/mensagem/
 
 > **Categoria UTILITY** é a mais barata da Meta (vs MARKETING) e adequada porque todas estas mensagens são **notificações de serviço** do próprio pipeline ao seu operador — não promoção. Meta tipicamente aprova UTILITY em 1-3 dias.
 >
-> **Procedimento:** o operador `paulotodo` cria estes 6 templates na UI do clihelper, copiando o body abaixo e configurando os botões. Após aprovação da Meta, o HDD passa a invocá-los via `/api-oficial-mensagem-template/` com os parâmetros indicados.
+> **Procedimento:** o operador `operador` cria estes 6 templates na UI do clihelper, copiando o body abaixo e configurando os botões. Após aprovação da Meta, o HDD passa a invocá-los via `/api-oficial-mensagem-template/` com os parâmetros indicados.
 >
 > **Convenção:** cada `{{N}}` é uma variável posicional. Buttons são Quick Reply com `payload` (string que volta no webhook).
 
@@ -308,6 +308,6 @@ Para enviar via `POST https://clihelper.example.com/principal/apis/mensagem/api-
 
 ## Próximos passos
 
-1. **Operador (`paulotodo`):** rever este artefacto; ajustar copy/buttons conforme preferência; criar os templates no clihelper.
+1. **Operador (`operador`):** rever este artefacto; ajustar copy/buttons conforme preferência; criar os templates no clihelper.
 2. **HDD (próximos workflows):** implementar adapter HTTP com queue leaky-bucket (1 req/s, AO-45), Authorization header (AO-11'), retry com backoff, audit JSONL de cada envio.
 3. **Webhook inbound:** operador partilha estrutura JSON; HDD implementa listener com parser NLP para texto livre + parser de Quick Reply payloads (`p1_continuar_assim`, etc.).

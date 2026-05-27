@@ -133,7 +133,7 @@ não consegue popular `story_deps` DAG.
 
 ### Reviewer findings consolidados
 
-Pre-Mortem (6 failure modes) + Party Mode #1 (4 perspectivas: Senior Eng, Devil's Advocate, Future paulotodo, Sprint Planner) + Party Mode #2 (4 perspectivas: Test Engineer, AI Safety, PM, Worker) — verdict **APPROVE-WITH-AC-REFINEMENTS-IN-FOLLOWUP**. Acabam-se 2 ACs follow-up para calibrar Sprint 1 baseline (PM2-3 Q1/Q2/Q3) e capacity assumption confirmada antes Day 1 (PM2-4).
+Pre-Mortem (6 failure modes) + Party Mode #1 (4 perspectivas: Senior Eng, Devil's Advocate, Future operador, Sprint Planner) + Party Mode #2 (4 perspectivas: Test Engineer, AI Safety, PM, Worker) — verdict **APPROVE-WITH-AC-REFINEMENTS-IN-FOLLOWUP**. Acabam-se 2 ACs follow-up para calibrar Sprint 1 baseline (PM2-3 Q1/Q2/Q3) e capacity assumption confirmada antes Day 1 (PM2-4).
 
 ### Próximos passos sugeridos
 
@@ -242,7 +242,7 @@ Failure modes identificados e mitigações aplicadas:
 **Ronda 1 (Step 02 post epic design):**
 - Senior Engineer (10y systems, hexagonal arch)
 - Devil's Advocate
-- Future `paulotodo` (1 year later, manutenção)
+- Future `operador` (1 year later, manutenção)
 - Sprint Planner (operability lens)
 
 **Ronda 2 (Step 03 post 50 stories):**
@@ -257,7 +257,7 @@ Failure modes identificados e mitigações aplicadas:
 
 **Adopted as Step 04 follow-up (3):** PM2-3 Q1 fixed em Story 3.5; PM2-3 Q2/Q3 documented; PM2-4 capacity 3 cenários documented
 
-**Rejected (1):** Future paulotodo perspectiva sugeriu renaming E3 para capability-based ("OutboundNotify") — rejected porque memórias persistentes confirmam clihelper como integração v1 explícita; v1.1+ futureproofing **anotado em implementation notes** mas sem rename.
+**Rejected (1):** Future operador perspectiva sugeriu renaming E3 para capability-based ("OutboundNotify") — rejected porque memórias persistentes confirmam clihelper como integração v1 explícita; v1.1+ futureproofing **anotado em implementation notes** mas sem rename.
 
 ### 8. Trilha de aprovações
 

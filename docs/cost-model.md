@@ -2,9 +2,9 @@
 title: "Cost Model — HDD (HORSE DRIVEN DEVELOPMENT)"
 status: approved
 created: 2026-05-26
-aprovado_por: paulotodo
+aprovado_por: operador
 aprovado_em: 2026-05-26 (approve ao151)
-owner: paulotodo
+owner: operador
 ação_aberta: AO-151
 disparado_por: D-050
 decisão_nova: D-051
@@ -128,7 +128,7 @@ morde a **~1,7–4× o volume esperado** — exatamente um cenário de *runaway*
 ## 5. Decisão de budget — D-051 (Postura B)
 
 > **D-051 (2026-05-26) — Budget sobe; cap USD adicional para a API.**
-> Decisão consciente do operador (paulotodo). **Postura B** escolhida sobre a A.
+> Decisão consciente do operador (operador). **Postura B** escolhida sobre a A.
 
 A D-017 calibrou o budget em **R$1000/m ≈ exatamente o custo da subscrição Max 20x
 ($200)** — i.e., headroom ≈ R$0. Com a D-050, qualquer gasto de API ultrapassa

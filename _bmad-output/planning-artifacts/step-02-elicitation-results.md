@@ -25,7 +25,7 @@ Imaginando Outubro 2026 com o projeto morto, retroagindo:
 7. **Definição de superfície sensível insuficiente** (MÉDIA × CRÍTICO se publicar).
 8. **Resumo 3-tier vira ruído; approve automático** (MÉDIA × MÉDIO).
 9. **Bimodal handoff perde contexto implícito** (MÉDIA × ALTO).
-10. **paulotodo muda piloto a meio** (MÉDIA × MÉDIO).
+10. **operador muda piloto a meio** (MÉDIA × MÉDIO).
 
 **10 obrigações arquiteturais derivadas (O-A..O-J)** — ver detalhes na conversa.
 

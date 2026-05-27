@@ -131,7 +131,7 @@ Começa.
 
 - 16 memórias persistentes (`MEMORY.md` auto-loaded) — incluindo D-046 capacity, D-044 LLM hybrid, Bun-first stack, sd_notify gotcha, mandatory review, externalização thesis
 - Convenções projeto (CLAUDE.md auto-loaded) — não tocar `_bmad/`, idioma PT, BMAD v6.7.1, paths canónicos
-- Identidade operador (paulotodo, operador@example.com)
+- Identidade operador (operador, operador@example.com)
 
 ## Riscos identificados para essa sessão
 

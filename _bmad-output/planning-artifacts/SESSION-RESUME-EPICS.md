@@ -5,7 +5,7 @@ paused_at: 2026-05-22
 prior_workflow: bmad-create-architecture (COMPLETED 2026-05-22)
 next_workflow: bmad-create-epics-and-stories
 phase: Solução (BMAD 3) → close gap antes Fase 4 Implementação
-operator: paulotodo
+operator: operador
 ---
 
 # SESSION RESUME — HDD · Epics & Stories
@@ -130,10 +130,10 @@ OUTBOUND (HDD → operador):
     → POST https://api.example.com/principal/apis/mensagem/...
     → clihelper backend
     → Meta Cloud API
-    → telemóvel paulotodo
+    → telemóvel operador
 
 INBOUND (operador → HDD):
-  telemóvel paulotodo
+  telemóvel operador
     → Meta Cloud API
     → n8n.example.com (captura + filter + forward)
     → HDD /callback (Hono) com Zod minimal schema DROP-AT-INGRESS
