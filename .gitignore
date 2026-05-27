@@ -5,3 +5,11 @@ _bmad/*
 !_bmad/custom/
 # ...mas o config.user.toml de custom/ é pessoal (gitignored per CLAUDE.md).
 _bmad/custom/config.user.toml
+
+# Variáveis de ambiente / segredos — nunca versionar (repo público).
+# .env.example fica committable por ser apenas template (sem segredos).
+.env
+.env.*
+*.env
+!.env.example
+!.env.*.example
