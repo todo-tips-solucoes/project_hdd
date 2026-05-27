@@ -1,0 +1,7 @@
+# BMAD installer output — regenerável via `npx bmad-method install` (ver CLAUDE.md).
+# Ignorado todo o _bmad/ exceto custom/, que contém os overrides persistentes
+# committable (pinos de time/pessoais) e nunca é tocado pelo installer.
+_bmad/*
+!_bmad/custom/
+# ...mas o config.user.toml de custom/ é pessoal (gitignored per CLAUDE.md).
+_bmad/custom/config.user.toml
