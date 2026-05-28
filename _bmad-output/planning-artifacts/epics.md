@@ -650,7 +650,7 @@ So that toda story subsequente pode compilar, lintar e testar em ambiente reprod
 **StorySpec:**
 - type: `foundational` · epic: E1.a · sprint: 0 · pri_feature: `foundational`
 - blocked_by: []
-- files_created: `package.json`, `bunfig.toml`, `biome.json`, `tsconfig.json`, `.eslintrc.json`, `src/main.ts` (stub), `README.md`
+- files_created: `package.json`, `bunfig.toml`, `biome.json`, `tsconfig.json`, `eslint.config.js`, `src/main.ts` (stub), `README.md`
 - files_modified: —
 - ao_subset: [AR-001, AR-002, AR-010, AR-017, AR-018]
 - estimated_tokens: { dev_core: 48K, dev_with_retry: 72K }
@@ -675,7 +675,7 @@ So that toda função no core devolve `Result<T,E>` em vez de throw, e identifie
 - type: `foundational` · epic: E1.a · sprint: 0 · pri_feature: `foundational`
 - blocked_by: [1.a.1]
 - files_created: `src/lib/result.ts`, `src/lib/branded.ts`, `tests/lib/result.test.ts`, `tests/lib/branded.test.ts`, `docs/conventions/errors.md`
-- files_modified: `.eslintrc.json` (custom rule `no-restricted-syntax: ThrowStatement` + 11-itens whitelist)
+- files_modified: `eslint.config.js` (custom rule `no-restricted-syntax: ThrowStatement` + 11-itens whitelist)
 - ao_subset: [AR-030, AR-031, AR-033, AO-66 throw whitelist]
 - estimated_tokens: { dev_core: 56K, dev_with_retry: 80K }
 
@@ -703,7 +703,7 @@ So that core pode ser testado sem dependências de tempo real, processos ou efei
 **StorySpec:**
 - type: `foundational` · epic: E1.a · sprint: 0 · pri_feature: `foundational`
 - blocked_by: [1.a.2]
-- files_created: `src/ports/clock.port.ts`, `src/ports/spawn.port.ts`, `src/ports/notify.port.ts`, `src/adapters/clock/system-clock.adapter.ts`, `src/adapters/clock/test-clock.adapter.ts`, `tests/ports/contracts.test.ts`
+- files_created: `src/ports/clock.port.ts`, `src/ports/spawn.port.ts`, `src/ports/notify.port.ts`, `src/adapters/clock/system-clock.adapter.ts`, `src/adapters/clock/test-clock.adapter.ts`, `src/adapters/spawn/fake-spawn.adapter.ts`, `tests/ports/contracts.test.ts`
 - files_modified: —
 - ao_subset: [AR-032, AR-038, D-04.3']
 - estimated_tokens: { dev_core: 64K, dev_with_retry: 96K }

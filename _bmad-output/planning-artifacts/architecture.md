@@ -129,7 +129,7 @@ _Documento construído colaborativamente através de descoberta passo-a-passo. S
 | # | Obrigação | Origem |
 |---|---|---|
 | **AO-1** | `context-bundle.json` imutável + hash no handoff Colab→Auton; worker NUNCA lê artefactos vivos directos do local | Arq #1 |
-| **AO-2** | FSM explícita do ciclo `RUNNING → PAUSED_P1/S1/S2 → RESPONDING → RESUMED`; novos triggers enquanto PAUSED entram em queue, não sobrepõem | Arq #2, Pre-mortem #5 |
+| **AO-2** | FSM explícita com 6 estados lowercase (`idle`, `running`, `paused_for_interrupt`, `paused_awaiting_review`, `paused_window_exhausted`, `failed`) — ciclo principal `running → paused_for_interrupt → running` consolidando os 4 PAUSED por trigger (P1/S1/S2/S3) num único estado com `trigger` carregado em metadata separada; novos triggers enquanto qualquer estado PAUSED entram em queue, não sobrepõem. Canon ratificado em Story 1.a.4 (commit `48a9a3a`) | Arq #2, Pre-mortem #5, Story 1.a.4 Q-A4-1 |
 | **AO-3** | Idempotência LLM-aware: hash do artefacto gerado verificado antes de qualquer commit | Arq #3, Pre-mortem #3 |
 | **AO-4** | Planning artefacts read-only no VPS; sync Git unidireccional VPS→local no fim de cada story | Arq #4 |
 | **AO-5** | Gap detector como camada plugável (interface `GapDetector`); default = ask-the-agent com structured boolean output + hit-rate metric | Arq #5, PM #3, Pre-mortem #2 |
@@ -221,7 +221,10 @@ CREATE TABLE runs (
   started_at    TEXT NOT NULL,
   ended_at      TEXT,
   status        TEXT NOT NULL CHECK(status IN
-    ('RUNNING','PAUSED_P1','PAUSED_S1','PAUSED_S2','PAUSED_S3','RESPONDING','RESUMED','DONE','FAILED')),
+    -- 6 estados canónicos per Story 1.a.4 (Q-A4-1 ratificado 2026-05-28). Story 1.a.5 implementa esta tabela.
+    ('idle','running','paused_for_interrupt','paused_awaiting_review','paused_window_exhausted','failed')),
+  paused_trigger TEXT CHECK(paused_trigger IN ('P1','S1','S2','S3')), -- só preenchido quando status = 'paused_for_interrupt'
+  paused_review_reason TEXT,                                          -- só quando status = 'paused_awaiting_review'
   context_bundle_hash TEXT NOT NULL,
   llm_tokens_total INTEGER NOT NULL DEFAULT 0,
   schema_version INTEGER NOT NULL DEFAULT 1
@@ -1102,8 +1105,8 @@ interface DevOutput {
 
 | Trigger | Tracker | Detector | Master action |
 |---|---|---|---|
-| P1 | Reviewer | `gap_detected: true` | Pausa FSM → `PAUSED_P1`; WhatsApp; await response |
-| S1 | Master | `story.started_at` + `now()` > 30min | SIGTERM worker; FSM → `TIMEOUT`; decide re-queue ou P1 |
+| P1 | Reviewer | `gap_detected: true` | Pausa FSM → `paused_for_interrupt` (trigger='P1'); WhatsApp; await response |
+| S1 | Master | `story.started_at` + `now()` > 30min | SIGTERM worker; FSM → `paused_for_interrupt` (trigger='S1'); decide re-queue ou P1 |
 | S2 | Master | `failure_count` incrementado a cada `REVIEW_FAILED` | A 5: pausa sprint; WhatsApp acumulado; reset só após confirm humana |
 | S3 | Master | `whatsapp_unconfirmed` count após send | A 3: `DEGRADED_MODE`; aguarda recovery manual |
 
@@ -1600,7 +1603,7 @@ flowchart TD
     E -->|spawn Dev sub-agent| F[LLMAdapter → Anthropic Sonnet 4.6]
     F -->|writeFile sandboxed| G[runs/run-id/workspace/]
     E -->|spawn Reviewer| H[ReviewOutput Result]
-    H -->|gapDetected=true| I[Master → FSM PAUSED_P1]
+    H -->|gapDetected=true| I[Master → FSM paused_for_interrupt trigger=P1]
     I --> J[WhatsAppAdapter → clihelper API → operator phone]
     J -.->|POST /callback| K[Hono]
     J -.->|POST /confirmation| K
