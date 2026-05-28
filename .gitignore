@@ -25,3 +25,10 @@ coverage/
 # resolve open item O-1). Ficheiros têm timestamps non-deterministic; recriam-se
 # correndo os smoke scripts manualmente.
 .smoke-evidence/
+
+# SQLite state store (Story 1.a.5) — runtime DB; nunca committable.
+# WAL/SHM são sidecar files do journal_mode=WAL.
+*.db
+*.db-wal
+*.db-shm
+.hdd-state.db*
