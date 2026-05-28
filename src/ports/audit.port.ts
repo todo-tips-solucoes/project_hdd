@@ -13,6 +13,12 @@
  *
  * **Redaction:** AR-063 / AO-160-166 são responsabilidade do CALLER em v1.
  * Story 1.b.3 adicionará middleware de redaction automática.
+ *
+ * **Correlation IDs (Story 1.a.9):** `runId` e `storyId` são opcionais. Quando
+ * não passados em `AuditEntry`, o adapter lê de `getRunContext()`
+ * (AsyncLocalStorage via `src/lib/run-context.ts`). Se NEM explicit NEM
+ * contexto fornecidos, `append()` devolve `err({kind: "RunIdMissing"})`.
+ * Explicit em AuditEntry sempre tem precedência sobre context.
  */
 
 import type { Sha256Hash } from "../lib/branded.ts";
@@ -20,7 +26,8 @@ import type { Result } from "../lib/result.ts";
 
 export type AuditEntry = {
   readonly ts: string; // ISO 8601 UTC
-  readonly runId: string;
+  /** Opcional desde 1.a.9; quando ausente o adapter lê de `getRunContext()`. */
+  readonly runId?: string;
   readonly storyId?: string;
   readonly type: string; // e.g. 'INTERRUPT_TRIGGERED', 'STORY_STARTED'
   readonly payload: Readonly<Record<string, unknown>>;
@@ -41,7 +48,8 @@ export type AuditError =
       readonly actual: string;
     }
   | { readonly kind: "FileNotFound"; readonly path: string }
-  | { readonly kind: "ParseFailure"; readonly atLine: number; readonly cause: unknown };
+  | { readonly kind: "ParseFailure"; readonly atLine: number; readonly cause: unknown }
+  | { readonly kind: "RunIdMissing" };
 
 export interface AuditPort {
   append(event: AuditEntry): Result<AuditAppendResult, AuditError>;

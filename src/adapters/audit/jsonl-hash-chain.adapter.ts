@@ -24,6 +24,7 @@ import { closeSync, mkdirSync, openSync, readFileSync, statSync, writeSync } fro
 import { join } from "node:path";
 import type { Sha256Hash } from "../../lib/branded.ts";
 import { err, ok } from "../../lib/result.ts";
+import { getRunContext } from "../../lib/run-context.ts";
 import type { AuditPort } from "../../ports/audit.port.ts";
 import type { ClockPort } from "../../ports/clock.port.ts";
 
@@ -82,6 +83,12 @@ export function createAuditAdapter(deps: {
 
   return {
     append(event) {
+      // Story 1.a.9: resolve correlation IDs (explicit > context > error).
+      const ctx = getRunContext();
+      const runId = event.runId ?? ctx?.runId;
+      if (runId === undefined) return err({ kind: "RunIdMissing" });
+      const storyId = event.storyId ?? ctx?.storyId;
+
       try {
         const now = deps.clock.now();
         const date = now.toISOString().slice(0, 10);
@@ -122,8 +129,8 @@ export function createAuditAdapter(deps: {
         const line = JSON.stringify({
           ts: event.ts,
           seq,
-          run_id: event.runId,
-          story_id: event.storyId ?? null,
+          run_id: runId,
+          story_id: storyId ?? null,
           type: event.type,
           payload: event.payload,
           prev_hash: prevHash,

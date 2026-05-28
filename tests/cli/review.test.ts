@@ -19,7 +19,12 @@ import type { Sha256Hash } from "../../src/lib/branded.ts";
 import { ok, type Result } from "../../src/lib/result.ts";
 import type { AuditEntry } from "../../src/ports/audit.port.ts";
 
-type AppendCall = { ts: string; runId: string; type: string; payload: Record<string, unknown> };
+type AppendCall = {
+  ts: string;
+  runId: string | undefined;
+  type: string;
+  payload: Record<string, unknown>;
+};
 
 function buildDeps(): {
   deps: Required<Omit<ReviewDeps, "bootstrap">> & {
