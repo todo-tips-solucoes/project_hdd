@@ -1,5 +1,5 @@
 # generated: 2026-05-22
-# last_updated: 2026-05-28
+# last_updated: 2026-05-28 (Sprint 0 Day 4 — Story 1.a.7 ready-for-dev)
 # project: projeto_hdd
 # project_key: NOKEY
 # tracking_system: file-system
@@ -39,6 +39,7 @@
 
 generated: 2026-05-22
 last_updated: 2026-05-28
+last_updated_note: "Sprint 0 Day 4 — Story 1.a.7 done (approved)"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -53,7 +54,7 @@ development_status:
   1-a-4-domain-fsm-interrupt-commands-tagged-union: done
   1-a-5-db-schema-base-drizzle-idempotency-keys-table: done
   1-a-6-audit-jsonl-adapter-com-hash-chain-rfc-3161-stub: done
-  1-a-7-bootstrap-order-env-validation-zod: backlog
+  1-a-7-bootstrap-order-env-validation-zod: done
   1-a-8-resumo-3-tier-tier-b-c-gerador-cli-review: backlog
   1-a-9-asynclocalstorage-withruncontext-correlation-ids: backlog
   1-a-10-llmport-anthropicadapter-foundational-haiku-sdk-sonnet-cli-base-wiring: backlog
