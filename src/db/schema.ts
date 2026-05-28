@@ -100,3 +100,16 @@ export const schemaMigrations = sqliteTable("schema_migrations", {
 
 export type SchemaMigration = typeof schemaMigrations.$inferSelect;
 export type NewSchemaMigration = typeof schemaMigrations.$inferInsert;
+
+// ── audit_chain_state (Story 1.a.6 — per-project last hash) ───────────────────
+
+export const auditChainState = sqliteTable("audit_chain_state", {
+  projectId: text("project_id").primaryKey(),
+  currentDate: text("current_date").notNull(),
+  lastSeq: integer("last_seq").notNull().default(0),
+  lastHash: text("last_hash").notNull().default("genesis"),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export type AuditChainState = typeof auditChainState.$inferSelect;
+export type NewAuditChainState = typeof auditChainState.$inferInsert;

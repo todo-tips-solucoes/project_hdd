@@ -53,11 +53,11 @@ describe("AC-1 PRAGMAs após createDbConnection", () => {
 // ────────────────────────────────────────────────────────────────────────────────
 
 describe("AC-2 applyMigrations idempotente", () => {
-  test("primeira execução aplica 001_init", () => {
+  test("primeira execução aplica todas as migrations disponíveis", () => {
     const db = createDbConnection(":memory:");
     const r = applyMigrations(db, MIGRATIONS_DIR);
     expect(r.isOk()).toBe(true);
-    expect(r._unsafeUnwrap()).toEqual({ appliedCount: 1 });
+    expect(r._unsafeUnwrap().appliedCount).toBeGreaterThanOrEqual(1);
 
     const tables = db
       .query<{ name: string }, []>(
@@ -69,25 +69,28 @@ describe("AC-2 applyMigrations idempotente", () => {
     expect(names).toContain("stories");
     expect(names).toContain("idempotency_keys");
     expect(names).toContain("schema_migrations");
+    expect(names).toContain("audit_chain_state"); // Story 1.a.6 (migration 002)
 
     const migrations = db
       .query<{ version: number }, []>("SELECT version FROM schema_migrations ORDER BY version")
       .all();
-    expect(migrations).toEqual([{ version: 1 }]);
+    expect(migrations.length).toBeGreaterThanOrEqual(1);
+    expect(migrations[0]).toEqual({ version: 1 });
 
     db.close();
   });
 
   test("segunda execução é no-op (idempotente)", () => {
     const db = createDbConnection(":memory:");
-    applyMigrations(db, MIGRATIONS_DIR);
+    const first = applyMigrations(db, MIGRATIONS_DIR);
+    const firstCount = first._unsafeUnwrap().appliedCount;
 
     const r2 = applyMigrations(db, MIGRATIONS_DIR);
     expect(r2.isOk()).toBe(true);
     expect(r2._unsafeUnwrap()).toEqual({ appliedCount: 0 });
 
     const count = db.query<{ n: number }, []>("SELECT COUNT(*) as n FROM schema_migrations").get();
-    expect(count?.n).toBe(1);
+    expect(count?.n).toBe(firstCount);
 
     db.close();
   });
