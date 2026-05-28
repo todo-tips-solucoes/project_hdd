@@ -50,7 +50,7 @@ development_status:
   1-a-1-bun-base-scaffold-linting-test-runner: done
   1-a-2-result-t-e-branded-types-lib-helpers: done
   1-a-3-3-ports-temporais-clock-spawn-notify: done
-  1-a-4-domain-fsm-interrupt-commands-tagged-union: backlog
+  1-a-4-domain-fsm-interrupt-commands-tagged-union: done
   1-a-5-db-schema-base-drizzle-idempotency-keys-table: backlog
   1-a-6-audit-jsonl-adapter-com-hash-chain-rfc-3161-stub: backlog
   1-a-7-bootstrap-order-env-validation-zod: backlog
