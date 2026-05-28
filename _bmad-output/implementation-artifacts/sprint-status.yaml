@@ -48,7 +48,7 @@ development_status:
   # ===== Epic 1.a: Runtime Scaffold & Core Contracts =====
   epic-1a: in-progress
   1-a-1-bun-base-scaffold-linting-test-runner: done
-  1-a-2-result-t-e-branded-types-lib-helpers: backlog
+  1-a-2-result-t-e-branded-types-lib-helpers: done
   1-a-3-3-ports-temporais-clock-spawn-notify: backlog
   1-a-4-domain-fsm-interrupt-commands-tagged-union: backlog
   1-a-5-db-schema-base-drizzle-idempotency-keys-table: backlog

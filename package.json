@@ -25,9 +25,13 @@
     "@biomejs/biome": "^2.4.16",
     "@types/bun": "latest",
     "eslint": "^10.4.0",
+    "fast-check": "^4.8.0",
     "typescript-eslint": "^8.60.0"
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "neverthrow": "^8.2.0"
   }
 }
