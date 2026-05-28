@@ -50,6 +50,12 @@ export default tseslint.config(
         "error",
         { selector: "ThrowStatement", message: THROW_WHITELIST_MESSAGE },
       ],
+      // Convenção HDD: parâmetros com prefixo `_` são intencionalmente unused
+      // (e.g. interface implementations que ignoram args). Story 1.a.3.
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
     },
   },
   {
@@ -57,6 +63,18 @@ export default tseslint.config(
     files: ["tests/**/*.ts"],
     rules: {
       "no-restricted-syntax": "off",
+    },
+  },
+  {
+    // AO-103 (Story 1.a.3): setTimeout/setInterval em src/core/** só via ClockPort.
+    // Adapters PODEM usar globais (são a implementação real); ports são apenas tipos.
+    files: ["src/core/**/*.ts"],
+    rules: {
+      "no-restricted-globals": [
+        "error",
+        { name: "setTimeout", message: "Use ClockPort.setTimeout (AO-103)" },
+        { name: "setInterval", message: "Use ClockPort.setInterval (AO-103)" },
+      ],
     },
   },
 );
