@@ -51,6 +51,12 @@ export type BootDeps = {
   readonly bootRunId?: string;
   readonly emitProcessStartedEvent?: boolean;
   readonly emitProcessStoppedEvent?: boolean;
+  /**
+   * Story 1.a.8 — CLI mode. Quando `true`, skipa `shutdown.arm()` (CLI é
+   * one-shot, não daemon) e default `emitProcessStartedEvent=false`. Compat
+   * 100% com 1.a.7: default `false` mantém behavior daemon.
+   */
+  readonly cliMode?: boolean;
 };
 
 export type BootResult = {
@@ -89,14 +95,16 @@ export function bootstrap(deps: BootDeps = {}): Result<BootResult, BootError> {
     return err({ kind: "BootMigrationFailure", inner: migR.error });
   }
 
-  // 3. audit adapter + opcional "ProcessStarted" event (Q-A7-3 Yes default).
+  // 3. audit adapter + opcional "ProcessStarted" event (Q-A7-3 Yes default;
+  //    skip em cliMode — CLI é one-shot, não polui audit chain).
   const audit = createAuditAdapter({
     clock,
     db,
     baseDir: deps.auditBaseDir ?? DEFAULT_AUDIT_BASE_DIR,
     project: deps.project ?? DEFAULT_PROJECT,
   });
-  if (deps.emitProcessStartedEvent !== false) {
+  const emitStarted = deps.emitProcessStartedEvent ?? deps.cliMode !== true;
+  if (emitStarted) {
     const appR = audit.append({
       ts: clock.now().toISOString(),
       runId: bootRunId,
@@ -109,15 +117,17 @@ export function bootstrap(deps: BootDeps = {}): Result<BootResult, BootError> {
     }
   }
 
-  // 4. shutdown handler armed.
+  // 4. shutdown handler armed (skip em cliMode — CLI fecha db manualmente).
   const shutdown = createShutdownHandler({
     db,
     audit,
     clock,
     bootRunId,
-    emitStoppedEvent: deps.emitProcessStoppedEvent !== false,
+    emitStoppedEvent: deps.emitProcessStoppedEvent !== false && deps.cliMode !== true,
   });
-  shutdown.arm();
+  if (deps.cliMode !== true) {
+    shutdown.arm();
+  }
 
   return ok({ env, db, audit, shutdown, bootRunId });
 }
