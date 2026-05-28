@@ -1,5 +1,5 @@
 # generated: 2026-05-22
-# last_updated: 2026-05-22
+# last_updated: 2026-05-28
 # project: projeto_hdd
 # project_key: NOKEY
 # tracking_system: file-system
@@ -38,7 +38,7 @@
 # - 4 BLOCKERS DRB-mandated antes M1 sign-off
 
 generated: 2026-05-22
-last_updated: 2026-05-22
+last_updated: 2026-05-28
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -69,14 +69,14 @@ development_status:
   epic-1b-retrospective: optional
 
   # ===== Epic 1.c: Bootstrap & Operations =====
-  epic-1c: backlog
+  epic-1c: in-progress
   1-c-1-systemd-unit-type-simple-healthz-endpoint: backlog
   1-c-2-secrets-management-environmentfile: backlog
   1-c-3-litestream-supervisor-r2-eu-rclone: backlog
   1-c-4-ci-github-actions-bun-build-compile-renovate: backlog
   1-c-5-ssh-restricted-deploy: backlog
   1-c-6-8-runbooks-must-have: backlog
-  1-c-7-bmad-cli-smoke-test-plan-b-fork-docs: backlog
+  1-c-7-bmad-cli-smoke-test-plan-b-fork-docs: done
   epic-1c-retrospective: optional
 
   # ===== Epic 2: Worker Autónomo & Pipeline Bimodal =====
