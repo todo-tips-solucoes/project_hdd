@@ -20,6 +20,9 @@ Type=simple
 User=hdd-worker
 EnvironmentFile=/etc/hdd/secrets.env
 WorkingDirectory=/opt/hdd
+# Story 1.c.2 (NFR-S1) — gate de permissão: recusa arrancar se secrets.env não
+# for 0600 (ConditionPathExists só verifica existência, não permissões).
+ExecStartPre=/bin/bash -c 'test "$(stat -c %a /etc/hdd/secrets.env)" = "600"'
 ExecStart=/opt/hdd/dist/hdd-worker start
 ExecStartPost=/bin/bash -c 'until curl -sf http://localhost:${PORT}/healthz; do sleep 2; done'
 Restart=on-failure

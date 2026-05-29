@@ -66,7 +66,7 @@ function buildDeps(): {
   } as unknown as BootResult["db"];
 
   const bootResult: BootResult = {
-    env: { ANTHROPIC_API_KEY: "sk-test" },
+    env: { ANTHROPIC_API_KEY: "sk-test", CLIHELPER_TOKEN: "clh-test" },
     db: mockDb,
     audit: mockAudit,
     shutdown: {

@@ -125,7 +125,7 @@ describe("AC2 — boot fail-closed se image ausente (<500ms)", () => {
   test("sandboxImageCheck a falhar → BootSandboxImageMissing, <500ms", () => {
     const start = performance.now();
     const r = bootstrap({
-      env: { ANTHROPIC_API_KEY: "sk-test-123" },
+      env: { ANTHROPIC_API_KEY: "sk-test-123", CLIHELPER_TOKEN: "clh-test" },
       dbPath: ":memory:",
       sandboxImageCheck: () => err({ kind: "SandboxImageMissing", image: SANDBOX_IMAGE }),
     });
@@ -141,7 +141,7 @@ describe("AC2 — boot fail-closed se image ausente (<500ms)", () => {
   test("sandboxImageCheck ok → boot daemon prossegue", () => {
     const auditDir = mkdtempSync(join(tmpdir(), "hdd-sbx-boot-"));
     const r = bootstrap({
-      env: { ANTHROPIC_API_KEY: "sk-test-123" },
+      env: { ANTHROPIC_API_KEY: "sk-test-123", CLIHELPER_TOKEN: "clh-test" },
       clock: createTestClockAdapter(new Date("2026-05-29T00:00:00Z")),
       dbPath: ":memory:",
       auditBaseDir: auditDir,

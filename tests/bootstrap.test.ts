@@ -53,13 +53,13 @@ describe("parseEnv — AC-1 fail-closed substrings", () => {
   });
 
   test("valid ANTHROPIC_API_KEY → ok", () => {
-    const r = parseEnv({ ANTHROPIC_API_KEY: VALID_KEY });
+    const r = parseEnv({ ANTHROPIC_API_KEY: VALID_KEY, CLIHELPER_TOKEN: "clh-test" });
     expect(r.isOk()).toBe(true);
     if (r.isOk()) expect(r.value.ANTHROPIC_API_KEY).toBe(VALID_KEY);
   });
 
   test("ANTHROPIC_API_KEY com whitespace nas pontas é trimmed", () => {
-    const r = parseEnv({ ANTHROPIC_API_KEY: "  sk-trimmed  " });
+    const r = parseEnv({ ANTHROPIC_API_KEY: "  sk-trimmed  ", CLIHELPER_TOKEN: "clh-test" });
     expect(r.isOk()).toBe(true);
     if (r.isOk()) expect(r.value.ANTHROPIC_API_KEY).toBe("sk-trimmed");
   });
@@ -117,7 +117,7 @@ describe("AC-1 bootstrap fail-closed em env missing", () => {
     const auditDir = tmpAuditDir();
     const clock = createTestClockAdapter(new Date("2026-05-28T10:00:00Z"));
     const r = bootstrap({
-      env: { ANTHROPIC_API_KEY: VALID_KEY },
+      env: { ANTHROPIC_API_KEY: VALID_KEY, CLIHELPER_TOKEN: "clh-test" },
       sandboxImageCheck: () => ok(true),
       clock,
       dbPath: ":memory:",
@@ -144,7 +144,7 @@ describe("AC-1 bootstrap fail-closed em env missing", () => {
     const auditDir = tmpAuditDir();
     const clock = createTestClockAdapter(new Date("2026-05-28T10:00:00Z"));
     const r = bootstrap({
-      env: { ANTHROPIC_API_KEY: VALID_KEY },
+      env: { ANTHROPIC_API_KEY: VALID_KEY, CLIHELPER_TOKEN: "clh-test" },
       sandboxImageCheck: () => ok(true),
       clock,
       dbPath: ":memory:",
@@ -189,7 +189,7 @@ describe("AC-2 SIGTERM graceful shutdown", () => {
   function bootForShutdown(auditDir: string): BootResult {
     const clock = createTestClockAdapter(new Date("2026-05-28T10:00:00Z"));
     const r = bootstrap({
-      env: { ANTHROPIC_API_KEY: VALID_KEY },
+      env: { ANTHROPIC_API_KEY: VALID_KEY, CLIHELPER_TOKEN: "clh-test" },
       sandboxImageCheck: () => ok(true),
       clock,
       dbPath: ":memory:",
@@ -274,7 +274,7 @@ describe("AC-2 SIGTERM graceful shutdown", () => {
     const auditDir = tmpAuditDir();
     const clock = createTestClockAdapter(new Date("2026-05-28T10:00:00Z"));
     const r = bootstrap({
-      env: { ANTHROPIC_API_KEY: VALID_KEY },
+      env: { ANTHROPIC_API_KEY: VALID_KEY, CLIHELPER_TOKEN: "clh-test" },
       sandboxImageCheck: () => ok(true),
       clock,
       dbPath: ":memory:",
@@ -309,7 +309,7 @@ describe("createShutdownHandler arm/unarm — listener hygiene", () => {
     const auditDir = tmpAuditDir();
     const clock = createTestClockAdapter();
     const r = bootstrap({
-      env: { ANTHROPIC_API_KEY: VALID_KEY },
+      env: { ANTHROPIC_API_KEY: VALID_KEY, CLIHELPER_TOKEN: "clh-test" },
       sandboxImageCheck: () => ok(true),
       clock,
       dbPath: ":memory:",
