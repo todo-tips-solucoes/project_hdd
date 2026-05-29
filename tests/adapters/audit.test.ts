@@ -261,3 +261,34 @@ describe("AC-4 rotation date-based + .tsr stub", () => {
     expect(tsrContent.covered_sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 });
+
+// ────────────────────────────────────────────────────────────────────────────────
+// Story 1.b.3: redaction pre-write (AO-160/166) — secret nunca toca o disco
+// ────────────────────────────────────────────────────────────────────────────────
+
+describe("redaction pre-write (Story 1.b.3)", () => {
+  test("payload com Bearer sk-ant → linha JSONL redigida; verifyChain verde", () => {
+    const r = ctx.audit.append({
+      ts: "2026-05-28T10:00:00.000Z",
+      runId: "run-1",
+      type: "SecurityViolation",
+      payload: {
+        header: "Authorization: Bearer sk-ant-api03-LEAKEDsecret123456",
+        wa_id: "5511987654321",
+      },
+    });
+    expect(r.isOk()).toBe(true);
+
+    const path = join(ctx.baseDir, ctx.project, "2026-05-28.jsonl");
+    const raw = readFileSync(path, "utf8");
+    // o segredo cru NUNCA aparece no ficheiro
+    expect(raw.includes("sk-ant-api03-LEAKEDsecret123456")).toBe(false);
+    expect(raw.includes("5511987654321")).toBe(false);
+
+    const parsed = parseLine(raw.split("\n")[0] ?? "");
+    expect(parsed.payload["header"] as string).toBe("Authorization: Bearer ***REDACTED***");
+
+    // AC3: hash sobre redigido → chain íntegra
+    expect(ctx.audit.verifyChain("2026-05-28").isOk()).toBe(true);
+  });
+});

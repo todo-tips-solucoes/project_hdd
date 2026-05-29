@@ -23,6 +23,7 @@ import type { Database } from "bun:sqlite";
 import { closeSync, mkdirSync, openSync, readFileSync, statSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import type { Sha256Hash } from "../../lib/branded.ts";
+import { redactPayload } from "../../lib/redaction.ts";
 import { err, ok } from "../../lib/result.ts";
 import { getRunContext } from "../../lib/run-context.ts";
 import type { AuditPort } from "../../ports/audit.port.ts";
@@ -129,14 +130,17 @@ export function createAuditAdapter(deps: {
           seq = 0;
         }
 
-        const thisHash = computeHash(prevHash, event.ts, seq, event.type, event.payload);
+        // Story 1.b.3 (AO-160/166): redige secrets ANTES de hash + write
+        // (never-store-raw-tokens). Hash e line ambos do payload redigido (AC3).
+        const safePayload = redactPayload(event.payload);
+        const thisHash = computeHash(prevHash, event.ts, seq, event.type, safePayload);
         const line = JSON.stringify({
           ts: event.ts,
           seq,
           run_id: runId,
           story_id: storyId ?? null,
           type: event.type,
-          payload: event.payload,
+          payload: safePayload,
           prev_hash: prevHash,
           this_hash: thisHash,
         });
