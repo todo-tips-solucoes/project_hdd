@@ -28,6 +28,7 @@ import { randomUUID } from "node:crypto";
 
 import { createAuditAdapter } from "./adapters/audit/jsonl-hash-chain.adapter.ts";
 import { createSystemClockAdapter } from "./adapters/clock/system-clock.adapter.ts";
+import { checkSandboxImageSync, SANDBOX_IMAGE } from "./adapters/sandbox/docker-spawn.adapter.ts";
 import { applyMigrations, createDbConnection, type MigrationError } from "./db/connection.ts";
 import { type Env, type EnvValidationError, parseEnv } from "./lib/env.ts";
 import { err, ok, type Result } from "./lib/result.ts";
@@ -57,6 +58,12 @@ export type BootDeps = {
    * 100% com 1.a.7: default `false` mantém behavior daemon.
    */
   readonly cliMode?: boolean;
+  /**
+   * Story 1.b.4 — verificação fail-closed da sandbox image (AO-47). Injectável
+   * p/ tests; default `() => checkSandboxImageSync(SANDBOX_IMAGE)` (Bun.spawnSync
+   * docker image inspect, <500ms). Skip em `cliMode` (CLI não corre sandbox).
+   */
+  readonly sandboxImageCheck?: () => Result<true, { kind: "SandboxImageMissing"; image: string }>;
 };
 
 export type BootResult = {
@@ -71,7 +78,8 @@ export type BootError =
   | { readonly kind: "BootEnvInvalid"; readonly inner: EnvValidationError }
   | { readonly kind: "BootDbFailure"; readonly cause: unknown }
   | { readonly kind: "BootMigrationFailure"; readonly inner: MigrationError }
-  | { readonly kind: "BootAuditFailure"; readonly inner: AuditError };
+  | { readonly kind: "BootAuditFailure"; readonly inner: AuditError }
+  | { readonly kind: "BootSandboxImageMissing"; readonly image: string };
 
 export function bootstrap(deps: BootDeps = {}): Result<BootResult, BootError> {
   // 1. env Zod fail-fast.
@@ -81,6 +89,16 @@ export function bootstrap(deps: BootDeps = {}): Result<BootResult, BootError> {
 
   const clock = deps.clock ?? createSystemClockAdapter();
   const bootRunId = deps.bootRunId ?? randomUUID();
+
+  // 1b. sandbox image fail-closed (Story 1.b.4, AO-47). Skip em cliMode (CLI
+  //     one-shot não corre sandbox). Antes da db → fail-fast <500ms.
+  if (deps.cliMode !== true) {
+    const imageCheck = deps.sandboxImageCheck ?? (() => checkSandboxImageSync(SANDBOX_IMAGE));
+    const imgR = imageCheck();
+    if (imgR.isErr()) {
+      return err({ kind: "BootSandboxImageMissing", image: imgR.error.image });
+    }
+  }
 
   // 2. db + migrations.
   let db: Database;

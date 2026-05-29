@@ -28,6 +28,8 @@ function formatBootError(e: BootError): string {
       return `migration failed: ${JSON.stringify(e.inner)}`;
     case "BootAuditFailure":
       return `audit init failed: ${JSON.stringify(e.inner)}`;
+    case "BootSandboxImageMissing":
+      return `sandbox image missing: ${e.image} — corre scripts/prepull-sandbox-image.sh`;
   }
 }
 

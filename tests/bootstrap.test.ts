@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { createTestClockAdapter } from "../src/adapters/clock/test-clock.adapter.ts";
 import { type BootResult, bootstrap } from "../src/bootstrap.ts";
 import { parseEnv } from "../src/lib/env.ts";
+import { ok } from "../src/lib/result.ts";
 import { createShutdownHandler } from "../src/lib/shutdown.ts";
 
 const MIGRATIONS_DIR = join(import.meta.dir, "..", "src", "db", "migrations");
@@ -117,6 +118,7 @@ describe("AC-1 bootstrap fail-closed em env missing", () => {
     const clock = createTestClockAdapter(new Date("2026-05-28T10:00:00Z"));
     const r = bootstrap({
       env: { ANTHROPIC_API_KEY: VALID_KEY },
+      sandboxImageCheck: () => ok(true),
       clock,
       dbPath: ":memory:",
       auditBaseDir: auditDir,
@@ -143,6 +145,7 @@ describe("AC-1 bootstrap fail-closed em env missing", () => {
     const clock = createTestClockAdapter(new Date("2026-05-28T10:00:00Z"));
     const r = bootstrap({
       env: { ANTHROPIC_API_KEY: VALID_KEY },
+      sandboxImageCheck: () => ok(true),
       clock,
       dbPath: ":memory:",
       auditBaseDir: auditDir,
@@ -187,6 +190,7 @@ describe("AC-2 SIGTERM graceful shutdown", () => {
     const clock = createTestClockAdapter(new Date("2026-05-28T10:00:00Z"));
     const r = bootstrap({
       env: { ANTHROPIC_API_KEY: VALID_KEY },
+      sandboxImageCheck: () => ok(true),
       clock,
       dbPath: ":memory:",
       auditBaseDir: auditDir,
@@ -271,6 +275,7 @@ describe("AC-2 SIGTERM graceful shutdown", () => {
     const clock = createTestClockAdapter(new Date("2026-05-28T10:00:00Z"));
     const r = bootstrap({
       env: { ANTHROPIC_API_KEY: VALID_KEY },
+      sandboxImageCheck: () => ok(true),
       clock,
       dbPath: ":memory:",
       auditBaseDir: auditDir,
@@ -305,6 +310,7 @@ describe("createShutdownHandler arm/unarm — listener hygiene", () => {
     const clock = createTestClockAdapter();
     const r = bootstrap({
       env: { ANTHROPIC_API_KEY: VALID_KEY },
+      sandboxImageCheck: () => ok(true),
       clock,
       dbPath: ":memory:",
       auditBaseDir: auditDir,
