@@ -39,7 +39,7 @@
 
 generated: 2026-05-22
 last_updated: 2026-05-28
-last_updated_note: "Sprint 0 Day 4 — Story 1.a.9 done (approved; summary auto-commit 21ca711 + feat commit pending)"
+last_updated_note: "Sprint 0 Day 5 — epic-1a DONE (10/10); Story 1.a.10 approved; feat commit pending"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -47,7 +47,7 @@ story_location: _bmad-output/implementation-artifacts
 
 development_status:
   # ===== Epic 1.a: Runtime Scaffold & Core Contracts =====
-  epic-1a: in-progress
+  epic-1a: done
   1-a-1-bun-base-scaffold-linting-test-runner: done
   1-a-2-result-t-e-branded-types-lib-helpers: done
   1-a-3-3-ports-temporais-clock-spawn-notify: done
@@ -57,7 +57,7 @@ development_status:
   1-a-7-bootstrap-order-env-validation-zod: done
   1-a-8-resumo-3-tier-tier-b-c-gerador-cli-review: done
   1-a-9-asynclocalstorage-withruncontext-correlation-ids: done
-  1-a-10-llmport-anthropicadapter-foundational-haiku-sdk-sonnet-cli-base-wiring: backlog
+  1-a-10-llmport-anthropicadapter-foundational-haiku-sdk-sonnet-cli-base-wiring: done
   epic-1a-retrospective: optional
 
   # ===== Epic 1.b: Safety BLOCKERS =====

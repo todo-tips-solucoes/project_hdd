@@ -94,10 +94,14 @@ export function createAuditAdapter(deps: {
         const date = now.toISOString().slice(0, 10);
         const nowIso = now.toISOString();
 
-        // Lê estado actual (cria se ausente)
+        // Lê estado actual (cria se ausente).
+        // BUG FIX Story 1.a.10 (2026-05-29): `current_date` é built-in SQL
+        // function em SQLite (devolve TODAY). Em SELECT sem quoting, SQLite
+        // resolve para a função built-in em vez da coluna → false rotation
+        // trigger. Quoting força resolução para coluna.
         let state = deps.db
           .query<ChainStateRow, [string]>(
-            "SELECT current_date, last_seq, last_hash FROM audit_chain_state WHERE project_id = ?",
+            'SELECT "current_date", last_seq, last_hash FROM audit_chain_state WHERE project_id = ?',
           )
           .get(deps.project);
 

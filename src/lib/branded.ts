@@ -21,12 +21,14 @@ export type RunId = string & { readonly _brand: "RunId" };
 export type StoryId = string & { readonly _brand: "StoryId" };
 export type Sha256Hash = string & { readonly _brand: "Sha256Hash" };
 export type IdempotencyKey = string & { readonly _brand: "IdempotencyKey" };
+/** Story 1.a.10 — claude --print session_id (UUID v4). */
+export type SessionId = string & { readonly _brand: "SessionId" };
 
 // ── BrandError tagged union ────────────────────────────────────────────────────
 
 export type BrandError = {
   readonly kind: "InvalidFormat";
-  readonly brand: "RunId" | "StoryId" | "Sha256Hash" | "IdempotencyKey";
+  readonly brand: "RunId" | "StoryId" | "Sha256Hash" | "IdempotencyKey" | "SessionId";
   readonly input: string;
   readonly reason: string;
 };
@@ -78,6 +80,20 @@ export function mkSha256Hash(s: string): Result<Sha256Hash, BrandError> {
     });
   }
   return ok(s as Sha256Hash);
+}
+
+export function mkSessionId(s: string): Result<SessionId, BrandError> {
+  // claude --print --output-format json retorna session_id em UUID v4 lowercase
+  // (validado pelo D-052 smoke da Story 1.c.7).
+  if (!UUID_V4_RE.test(s)) {
+    return err({
+      kind: "InvalidFormat",
+      brand: "SessionId",
+      input: s,
+      reason: "expected UUID v4 lowercase (claude --print session_id format)",
+    });
+  }
+  return ok(s as SessionId);
 }
 
 export function mkIdempotencyKey(s: string): Result<IdempotencyKey, BrandError> {
