@@ -38,8 +38,8 @@
 # - 4 BLOCKERS DRB-mandated antes M1 sign-off
 
 generated: 2026-05-22
-last_updated: 2026-05-28
-last_updated_note: "Sprint 0 Day 5 — epic-1a DONE (10/10); Story 1.a.10 approved; feat commit pending"
+last_updated: 2026-05-29
+last_updated_note: "Sprint 0 Day 6 — Story 1.b.1 (path traversal) DONE; 172 tests pass; epic-1b 1/5; sprint 12/22"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -61,8 +61,8 @@ development_status:
   epic-1a-retrospective: optional
 
   # ===== Epic 1.b: Safety BLOCKERS =====
-  epic-1b: backlog
-  1-b-1-path-traversal-sanitization-no-apply-diff: backlog
+  epic-1b: in-progress
+  1-b-1-path-traversal-sanitization-no-apply-diff: done
   1-b-2-two-step-confirmation-accoes-irreversiveis: backlog
   1-b-3-audit-redaction-multi-pattern: backlog
   1-b-4-sandbox-bun-spawn-docker-network-none: backlog

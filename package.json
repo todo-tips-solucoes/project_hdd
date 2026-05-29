@@ -16,6 +16,7 @@
     "build": "bun build --compile src/main.ts --outfile dist/hdd-worker",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
+    "test:security": "bun test tests/services/apply-diff.security.test.ts",
     "lint": "biome check src tests && eslint --no-error-on-unmatched-pattern src tests",
     "lint:fix": "biome check --write src tests && eslint --no-error-on-unmatched-pattern --fix src tests",
     "format": "biome format --write src tests",
