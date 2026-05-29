@@ -39,7 +39,7 @@
 
 generated: 2026-05-22
 last_updated: 2026-05-29
-last_updated_note: "Sprint 0 Day 6 — Story 1.b.4 (sandbox docker --network=none) DONE; 226 tests pass; epic-1b 4/5; sprint 15/22"
+last_updated_note: "Sprint 0 Day 6 — Epic 1.b DONE (5/5); Story 1.b.5 approved; 257 tests pass; sprint 16/22; resta Epic 1.c"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -61,12 +61,12 @@ development_status:
   epic-1a-retrospective: optional
 
   # ===== Epic 1.b: Safety BLOCKERS =====
-  epic-1b: in-progress
+  epic-1b: done
   1-b-1-path-traversal-sanitization-no-apply-diff: done
   1-b-2-two-step-confirmation-accoes-irreversiveis: done
   1-b-3-audit-redaction-multi-pattern: done
   1-b-4-sandbox-bun-spawn-docker-network-none: done
-  1-b-5-8-pentest-tasks-pt-1-pt-8-test-suite: backlog
+  1-b-5-8-pentest-tasks-pt-1-pt-8-test-suite: done
   epic-1b-retrospective: optional
 
   # ===== Epic 1.c: Bootstrap & Operations =====
