@@ -60,8 +60,8 @@ describe("AC-5 payloads desconhecidos → err({kind:'UnknownCommand'})", () => {
 });
 
 describe("PAYLOAD_MAP sanity", () => {
-  test("contém exactamente 5 entradas", () => {
-    expect(Object.keys(PAYLOAD_MAP).length).toBe(5);
+  test("contém exactamente 7 entradas (5 base + 2 Irrev Story 1.b.2)", () => {
+    expect(Object.keys(PAYLOAD_MAP).length).toBe(7);
   });
 
   test("todos os values são kinds válidos", () => {
@@ -71,6 +71,8 @@ describe("PAYLOAD_MAP sanity", () => {
       "FinAprovar",
       "FinPedirMudancas",
       "FinRejeitar",
+      "IrrevConfirmYes",
+      "IrrevConfirmNo",
     ]);
     for (const v of Object.values(PAYLOAD_MAP)) {
       expect(validKinds.has(v)).toBe(true);

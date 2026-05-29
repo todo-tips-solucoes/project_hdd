@@ -16,7 +16,10 @@ export type InterruptCommand =
   | { readonly kind: "P1Pausar" }
   | { readonly kind: "FinAprovar" }
   | { readonly kind: "FinPedirMudancas" }
-  | { readonly kind: "FinRejeitar" };
+  | { readonly kind: "FinRejeitar" }
+  // Story 1.b.2 — two-step confirmation de acções irreversíveis (AO-155/AO-164).
+  | { readonly kind: "IrrevConfirmYes" }
+  | { readonly kind: "IrrevConfirmNo" };
 
 export type InterruptCommandKind = InterruptCommand["kind"];
 
@@ -32,6 +35,8 @@ export const PAYLOAD_MAP: Readonly<Record<string, InterruptCommandKind>> = {
   fin_aprovar: "FinAprovar",
   fin_pedir_mudancas: "FinPedirMudancas",
   fin_rejeitar: "FinRejeitar",
+  irrev_confirm_yes: "IrrevConfirmYes",
+  irrev_confirm_no: "IrrevConfirmNo",
 };
 
 /** Pure parser. Acepta exact string match contra PAYLOAD_MAP. */
