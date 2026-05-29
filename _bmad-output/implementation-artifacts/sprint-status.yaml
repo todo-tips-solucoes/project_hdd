@@ -67,7 +67,7 @@ development_status:
   1-b-3-audit-redaction-multi-pattern: done
   1-b-4-sandbox-bun-spawn-docker-network-none: done
   1-b-5-8-pentest-tasks-pt-1-pt-8-test-suite: done
-  epic-1b-retrospective: optional
+  epic-1b-retrospective: done
 
   # ===== Epic 1.c: Bootstrap & Operations =====
   epic-1c: in-progress
