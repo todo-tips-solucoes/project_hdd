@@ -13,7 +13,7 @@
   },
   "scripts": {
     "dev": "bun --hot src/main.ts",
-    "build": "bun build --compile src/main.ts --outfile dist/hdd-worker",
+    "build": "bun build --compile src/cli/hdd-worker.ts --outfile dist/hdd-worker",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "test:security": "bun test tests/security tests/services/apply-diff.security.test.ts",
@@ -43,6 +43,7 @@
     "@anthropic-ai/sdk": "^0.100.1",
     "commander": "^14.0.3",
     "drizzle-orm": "^0.45.2",
+    "hono": "^4.12.23",
     "neverthrow": "^8.2.0",
     "zod": "^4.4.3"
   }

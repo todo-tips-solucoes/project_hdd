@@ -1,0 +1,32 @@
+# /etc/systemd/system/hdd-worker.service — Story 1.c.1 (AR-020, NFR-P1, D-04.14).
+#
+# Type=simple (NÃO notify): o Bun não suporta sd_notify nativo. A saúde é
+# exposta por HTTP /healthz e pollada externamente (Healthchecks.io). Sem
+# WatchdogSec por isso mesmo.
+#
+# ExecStart usa o BINÁRIO COMPILADO (D-04.15: `bun build --compile`, não `bun
+# run` interpreted — evita JIT 2-5s, cumpre NFR-P1 ≤30s). O wrapper
+# `litestream run --` entra na Story 1.c.3 (backup). Pré-requisito de boot
+# (fail-closed): a sandbox image tem de estar pre-pulled — correr
+# `scripts/prepull-sandbox-image.sh` antes do primeiro start (ver runbook).
+
+[Unit]
+Description=HDD Worker
+After=network.target
+ConditionPathExists=/etc/hdd/secrets.env
+
+[Service]
+Type=simple
+User=hdd-worker
+EnvironmentFile=/etc/hdd/secrets.env
+WorkingDirectory=/opt/hdd
+ExecStart=/opt/hdd/dist/hdd-worker start
+ExecStartPost=/bin/bash -c 'until curl -sf http://localhost:${PORT}/healthz; do sleep 2; done'
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+# WatchdogSec NOT set (Bun não suporta sd_notify nativo — usar /healthz polling)
+NotifyAccess=none
+
+[Install]
+WantedBy=multi-user.target
