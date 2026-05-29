@@ -75,3 +75,24 @@ jobs:
           name: pentest-report
           path: _bmad-output/security/
           if-no-files-found: ignore
+
+  # Retro Epic 1.b — camada de integração REAL (docker + fs/audit), não mockada.
+  # ubuntu-latest tem docker; constrói a image e corre os testes ao vivo.
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build sandbox image (real)
+        run: bash scripts/prepull-sandbox-image.sh
+
+      - name: Integration tests (docker + fs/audit reais)
+        run: bun run test:integration

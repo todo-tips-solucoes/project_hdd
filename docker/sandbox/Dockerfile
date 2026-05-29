@@ -16,5 +16,8 @@ USER 65534:65534
 
 WORKDIR /work
 
-# Entrypoint neutro; o comando real chega via `sh -c <script>` no docker run.
-ENTRYPOINT ["/bin/sh"]
+# SEM ENTRYPOINT: o comando real chega como `sh -c <script>` nos args do
+# `docker run` (ver buildDockerArgs). Um ENTRYPOINT ["/bin/sh"] faria o exec
+# tornar-se `/bin/sh sh -c ...` → erro "can't open 'sh'" (bug apanhado por
+# teste de integração real, Story 1.b.4/retro Epic 1.b). A base alpine já tem
+# /bin/sh; o `sh` dos args resolve via PATH.

@@ -17,6 +17,7 @@
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "test:security": "bun test tests/security tests/services/apply-diff.security.test.ts",
+    "test:integration": "bun test tests/integration",
     "check:webhook-schema": "bun run scripts/check-webhook-schema.ts",
     "lint": "biome check src tests && eslint --no-error-on-unmatched-pattern src tests",
     "lint:fix": "biome check --write src tests && eslint --no-error-on-unmatched-pattern --fix src tests",
