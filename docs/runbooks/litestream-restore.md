@@ -14,6 +14,45 @@ remoto até 1 ano nos dumps rclone (architecture.md:730).
 
 ---
 
+## Sintoma
+
+- Disco da VPS perdido / `/opt/hdd/.hdd-state.db` ausente após crash.
+- Boot do worker falha por DB inexistente; necessidade de restaurar state+audit.
+- DB corrompida (cruzar `[[hash-chain-corruption]]`).
+
+## Diagnóstico
+
+```bash
+ls -l /opt/hdd/.hdd-state.db        # existe? tamanho 0?
+litestream snapshots /opt/hdd/.hdd-state.db   # há réplica/snapshots no R2?
+```
+Confirmar que o Litestream estava a replicar antes do incidente (RPO ~1s).
+
+## Passos de Recuperação
+
+Procedimento detalhado nas secções numeradas abaixo: instalação dos binários
+(**§1**), config R2 + credenciais (**§2-3**), e o **restore em VPS limpa (§4)** —
+o passo central: `litestream restore` reconstrói a DB do snapshot + WAL (perda ≤
+retention 24h). Fallback do dump rclone secundário em **§4**.
+
+## Verificação
+
+```bash
+sqlite3 /opt/hdd/.hdd-state.db "PRAGMA integrity_check; SELECT COUNT(*) FROM schema_migrations;"
+bun run scripts/verify-audit-chain.ts $(date -u +%F)   # chain intacta
+systemctl status hdd-worker                             # active após restore
+```
+Drill de verificação mensal documentado em **§5** (réplica `file://`, sem tocar produção).
+
+## Post-mortem
+
+- **Timeline:** perda do disco/DB → restore → worker recuperado.
+- **Causa-raiz:** falha de hardware/VPS? disco cheio (`[[vps-disk-full]]`)? corrupção?
+- **Prevenção:** Litestream a replicar (RPO ~1s); drill mensal (§5); rclone 4×/dia;
+  monitorizar lag da réplica.
+
+---
+
 ## 1. Pré-requisitos (binários de sistema — NÃO são deps bun/npm)
 
 Litestream e rclone são binários externos. **Versões pinadas** (Renovate nunca

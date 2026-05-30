@@ -4,56 +4,62 @@ Story 1.c.2 (NFR-S1, AR-019, D-04.6'). Secrets vivem em `/etc/hdd/secrets.env`
 (systemd `EnvironmentFile`), **nunca no workspace/repo**, perm `0600`, owner
 `hdd-worker`.
 
-## Secrets actuais
-
 | Var | Obrigatório | Usado por |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | sim | LLM adapters (1.a.10) |
 | `CLIHELPER_TOKEN` | sim (Q-C2-1) | cliente clihelper outbound (Epic 3) |
 | `PORT` | não (default 8080) | `/healthz` (1.c.1) |
 
-## Pré-requisito de host (uma vez)
+## Sintoma
+
+- Rotação **planeada** (política periódica) ou **de emergência** (chave
+  comprometida/exposta — ver `[[ban-anthropic-emergency]]`).
+- Boot falha com `CLIHELPER_TOKEN required` ou `ANTHROPIC_API_KEY` ausente.
+- `ExecStartPre` recusa arrancar (perm ≠ 0600).
+
+## Diagnóstico
 
 ```bash
-# user dedicado não-privilegiado (NÃO criado pelo install-secrets.sh — Q-C2-3)
+systemctl status hdd-worker
+stat -c %a /etc/hdd/secrets.env          # tem de ser 600 (ou 400)
+journalctl -u hdd-worker --since "10 min ago" | grep -iE "required|secrets|ExecStartPre"
+```
+
+## Passos de Recuperação
+
+**Pré-requisito de host (uma vez)** — user dedicado (NÃO criado pelo script, Q-C2-3):
+```bash
 useradd --system --no-create-home --shell /usr/sbin/nologin hdd-worker
 ```
 
-## Instalar / actualizar secrets
-
+**Instalar / actualizar / rodar um secret:**
 ```bash
 cp systemd/hdd-worker.env.example /tmp/secrets.env
 chmod 600 /tmp/secrets.env
-$EDITOR /tmp/secrets.env            # preencher ANTHROPIC_API_KEY + CLIHELPER_TOKEN
+$EDITOR /tmp/secrets.env            # preencher/actualizar ANTHROPIC_API_KEY + CLIHELPER_TOKEN
 sudo bash scripts/install-secrets.sh /tmp/secrets.env   # instala 0600 + verifica
 shred -u /tmp/secrets.env           # apagar a cópia temporária
 sudo systemctl restart hdd-worker
 ```
 
-O `ExecStartPre` da unit recusa arrancar se `/etc/hdd/secrets.env` não for
-`0600` (gate de permissão). Em código, `checkSecretsFilePerms` espelha a regra
-(rejeita se group/world acessível).
+Para **rotação**: gerar a nova credencial no provider → editar → `install-secrets.sh`
+→ `restart` → **só depois** revogar a antiga no provider (após confirmar o restart).
 
-## Rotação de um secret
+## Verificação
 
-1. Gerar a nova credencial no provider (Anthropic console / clihelper).
-2. Editar `/tmp/secrets.env` com o **novo** valor → `install-secrets.sh` → `restart`.
-3. Confirmar saúde: `systemctl status hdd-worker` + `/healthz` 200.
-4. **Revogar** a credencial antiga no provider só após confirmar o restart OK.
+```bash
+systemctl status hdd-worker          # active após restart
+stat -c %a /etc/hdd/secrets.env      # 600
+# /healthz responde 200 (ver nota sobre curl no harness; usar do shell do operador)
+```
+**Garantias:** redaction (1.b.3) cobre `sk-ant-`/Bearer/`(token|secret|password|api_key)=…`
+→ secrets redigidos no audit/log (testado). `.gitignore` cobre `*.env` (excepto
+`*.example`) — confirmar com `git status` antes de qualquer commit.
 
-## Garantias
+## Post-mortem
 
-- **Nunca no audit/log:** a redaction (Story 1.b.3) cobre `sk-ant-`, Bearer e
-  `(token|secret|password|api_key)=…` → `CLIHELPER_TOKEN`/`ANTHROPIC_API_KEY`
-  são redigidos antes do write no JSONL. Confirmado por teste.
-- **Nunca no repo:** `.gitignore` cobre `*.env` (excepto `*.example`). Verificar
-  antes de qualquer commit (`git status`).
-- **Perm restrita:** `0600` (ou `0400` read-only) — group/world sem acesso.
-
-## Troubleshooting
-
-| Sintoma | Causa | Acção |
-|---|---|---|
-| unit não arranca, `ExecStartPre` falha | perm ≠ 0600 | `chmod 600 /etc/hdd/secrets.env` |
-| `CLIHELPER_TOKEN required` no boot | token ausente no env file | preencher + restart |
-| `install-secrets.sh` recusa origem | origem com perm laxa | `chmod 600` no ficheiro de origem |
+- **Timeline:** motivo da rotação (planeada/comprometida) → instalação → revogação.
+- **Causa-raiz:** se de emergência — como foi exposta a chave? (log? commit? screen-share?)
+- **Prevenção:** rotação periódica; `0600` sempre; redaction; `.gitignore`; nunca
+  ecoar secrets (sem `set -x`). Troubleshooting: perm≠600 → `chmod 600`; token
+  ausente → preencher + restart; origem laxa → `chmod 600` na origem.

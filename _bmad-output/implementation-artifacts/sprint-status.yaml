@@ -39,7 +39,7 @@
 
 generated: 2026-05-22
 last_updated: 2026-05-29
-last_updated_note: "Sprint 0 Day 10 — Story 1.c.5 (SSH restricted deploy) DONE; 285 tests pass; epic-1c 6/7; sprint 21/22"
+last_updated_note: "Sprint 0 FECHADO Day 11 — Story 1.c.6 (8 runbooks) DONE; epic-1c 7/7 done; SPRINT 0 22/22; 285 tests pass"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -70,13 +70,13 @@ development_status:
   epic-1b-retrospective: done
 
   # ===== Epic 1.c: Bootstrap & Operations =====
-  epic-1c: in-progress
+  epic-1c: done
   1-c-1-systemd-unit-type-simple-healthz-endpoint: done
   1-c-2-secrets-management-environmentfile: done
   1-c-3-litestream-supervisor-r2-eu-rclone: done
   1-c-4-ci-github-actions-bun-build-compile-renovate: done
   1-c-5-ssh-restricted-deploy: done
-  1-c-6-8-runbooks-must-have: backlog
+  1-c-6-8-runbooks-must-have: done
   1-c-7-bmad-cli-smoke-test-plan-b-fork-docs: done
   epic-1c-retrospective: optional
 
