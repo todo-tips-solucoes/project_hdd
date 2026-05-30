@@ -50,6 +50,11 @@ jobs:
       - name: Verify redaction (no secret survives)
         run: bun run scripts/verify-redaction.ts
 
+      # Retro Sprint 0 (AI-S0-2) — gate de completude dos runbooks must-have:
+      # impede que um runbook degrade abaixo das 5 secções (anti soft-convention-rot).
+      - name: Runbook completeness (8 must-have × 5 secções)
+        run: bash scripts/runbook-completeness.sh
+
   secret-scan:
     runs-on: ubuntu-latest
     steps:
