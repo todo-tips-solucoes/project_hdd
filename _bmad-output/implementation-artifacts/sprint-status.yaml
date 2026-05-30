@@ -38,8 +38,8 @@
 # - 4 BLOCKERS DRB-mandated antes M1 sign-off
 
 generated: 2026-05-22
-last_updated: 2026-05-29
-last_updated_note: "M1 Sprint 1 — Story 2.2 (BMAD invoker claude -p) DONE; epic-2 2/7; 304 tests pass; D-052 wired"
+last_updated: 2026-05-30
+last_updated_note: "M1 Sprint 1 — Story 2.3 (sub-agent context isolation) DONE; epic-2 3/7; 312 tests pass"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -84,7 +84,7 @@ development_status:
   epic-2: in-progress
   2-1-hdd-worker-cli-commander-scaffold: done
   2-2-bmad-invoker-port-cli-wrapper-adapter: done
-  2-3-sub-agent-context-isolation-per-workflow: backlog
+  2-3-sub-agent-context-isolation-per-workflow: done
   2-4-gate-story-dev-ac-validation: backlog
   2-5-gate-dev-review-test-suite-verde: backlog
   2-6-worker-lifecycle-start-pause-resume: backlog
