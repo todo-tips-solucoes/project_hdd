@@ -78,7 +78,7 @@ development_status:
   1-c-5-ssh-restricted-deploy: done
   1-c-6-8-runbooks-must-have: done
   1-c-7-bmad-cli-smoke-test-plan-b-fork-docs: done
-  epic-1c-retrospective: optional
+  epic-1c-retrospective: done
 
   # ===== Epic 2: Worker Autónomo & Pipeline Bimodal =====
   epic-2: backlog
