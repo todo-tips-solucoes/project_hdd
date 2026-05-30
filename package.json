@@ -2,7 +2,7 @@
   "name": "hdd-worker",
   "version": "0.0.1",
   "description": "HORSE DRIVEN DEVELOPMENT worker (HDD M0). Bun-based daemon for the BMAD-driven autonomous pipeline.",
-  "module": "src/main.ts",
+  "module": "src/cli/hdd-worker.ts",
   "type": "module",
   "private": true,
   "engines": {
@@ -12,7 +12,7 @@
     "hdd-worker": "./dist/hdd-worker"
   },
   "scripts": {
-    "dev": "bun --hot src/main.ts",
+    "dev": "bun --hot src/cli/hdd-worker.ts",
     "build": "bun build --compile src/cli/hdd-worker.ts --outfile dist/hdd-worker",
     "test": "bun test",
     "test:coverage": "bun test --coverage",

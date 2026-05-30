@@ -39,7 +39,7 @@
 
 generated: 2026-05-22
 last_updated: 2026-05-29
-last_updated_note: "Sprint 0 FECHADO Day 11 — Story 1.c.6 (8 runbooks) DONE; epic-1c 7/7 done; SPRINT 0 22/22; 285 tests pass"
+last_updated_note: "M1 Sprint 1 — Story 2.1 (hdd-worker CLI scaffold) DONE; epic-2 1/7; 296 tests pass; O-C1-1 fechado"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -81,8 +81,8 @@ development_status:
   epic-1c-retrospective: done
 
   # ===== Epic 2: Worker Autónomo & Pipeline Bimodal =====
-  epic-2: backlog
-  2-1-hdd-worker-cli-commander-scaffold: backlog
+  epic-2: in-progress
+  2-1-hdd-worker-cli-commander-scaffold: done
   2-2-bmad-invoker-port-cli-wrapper-adapter: backlog
   2-3-sub-agent-context-isolation-per-workflow: backlog
   2-4-gate-story-dev-ac-validation: backlog
