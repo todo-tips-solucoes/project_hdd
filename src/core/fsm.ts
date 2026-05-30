@@ -6,7 +6,8 @@
  * Persistência em SQLite (AO-40) é Story 1.a.5; queue de triggers durante
  * PAUSED (AO-2) é Story 4.x.
  *
- * **6 estados (Q-A4-1 resolved 2026-05-28 → lowercase epics.md AC):**
+ * **7 estados (Q-A4-1 resolved 2026-05-28 → lowercase epics.md AC; `gate_blocked`
+ * adicionado na Story 2.4 — Q-2.4-1, gate Story→Dev não-terminal):**
  *
  * | from \\ event              | StartRun | InterruptP1/S1/S2/S3 | OperatorResponded | OperatorPausedReview | OperatorApproved | OperatorRejected | WindowExhausted | Fail   |
  * |----------------------------|----------|----------------------|-------------------|----------------------|------------------|------------------|-----------------|--------|
@@ -26,6 +27,7 @@ export type FsmState =
   | "paused_for_interrupt"
   | "paused_awaiting_review"
   | "paused_window_exhausted"
+  | "gate_blocked"
   | "failed";
 
 export const ALL_STATES: ReadonlyArray<FsmState> = [
@@ -34,6 +36,7 @@ export const ALL_STATES: ReadonlyArray<FsmState> = [
   "paused_for_interrupt",
   "paused_awaiting_review",
   "paused_window_exhausted",
+  "gate_blocked",
   "failed",
 ];
 
@@ -48,6 +51,7 @@ export type FsmEvent =
   | { readonly kind: "OperatorApproved" }
   | { readonly kind: "OperatorRejected" }
   | { readonly kind: "WindowExhausted" }
+  | { readonly kind: "GateBlocked" }
   | { readonly kind: "Fail" };
 
 export type FsmEventKind = FsmEvent["kind"];
@@ -63,6 +67,7 @@ export const ALL_EVENT_KINDS: ReadonlyArray<FsmEventKind> = [
   "OperatorApproved",
   "OperatorRejected",
   "WindowExhausted",
+  "GateBlocked",
   "Fail",
 ];
 
@@ -85,6 +90,7 @@ export const TRANSITION_TABLE: Readonly<Record<FsmState, Partial<Record<FsmEvent
       InterruptS3: "paused_for_interrupt",
       OperatorPausedReview: "paused_awaiting_review",
       WindowExhausted: "paused_window_exhausted",
+      GateBlocked: "gate_blocked",
       Fail: "failed",
     },
     paused_for_interrupt: {
@@ -96,6 +102,12 @@ export const TRANSITION_TABLE: Readonly<Record<FsmState, Partial<Record<FsmEvent
     },
     paused_window_exhausted: {
       OperatorResponded: "running",
+    },
+    gate_blocked: {
+      // Story 2.4: gate Story→Dev falhou. Não-terminal: re-dispatch após
+      // correct-course (OperatorResponded→running). Fail → failed.
+      OperatorResponded: "running",
+      Fail: "failed",
     },
     failed: {
       // terminal — sem transições

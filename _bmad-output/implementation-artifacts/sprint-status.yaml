@@ -39,7 +39,7 @@
 
 generated: 2026-05-22
 last_updated: 2026-05-30
-last_updated_note: "M1 Sprint 1 — Story 2.3 (sub-agent context isolation) DONE; epic-2 3/7; 312 tests pass"
+last_updated_note: "M1 Sprint 1 — Story 2.4 (gate Story→Dev) DONE; epic-2 4/7; 324 tests pass"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -85,7 +85,7 @@ development_status:
   2-1-hdd-worker-cli-commander-scaffold: done
   2-2-bmad-invoker-port-cli-wrapper-adapter: done
   2-3-sub-agent-context-isolation-per-workflow: done
-  2-4-gate-story-dev-ac-validation: backlog
+  2-4-gate-story-dev-ac-validation: done
   2-5-gate-dev-review-test-suite-verde: backlog
   2-6-worker-lifecycle-start-pause-resume: backlog
   2-7-devoutput-reviewoutput-qaoutput-schemas-concretos: backlog
