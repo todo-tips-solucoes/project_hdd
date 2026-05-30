@@ -5,14 +5,18 @@
 # WatchdogSec por isso mesmo.
 #
 # ExecStart usa o BINÁRIO COMPILADO (D-04.15: `bun build --compile`, não `bun
-# run` interpreted — evita JIT 2-5s, cumpre NFR-P1 ≤30s). O wrapper
-# `litestream run --` entra na Story 1.c.3 (backup). Pré-requisito de boot
+# run` interpreted — evita JIT 2-5s, cumpre NFR-P1 ≤30s). Pré-requisito de boot
 # (fail-closed): a sandbox image tem de estar pre-pulled — correr
 # `scripts/prepull-sandbox-image.sh` antes do primeiro start (ver runbook).
+#
+# Story 1.c.3 (Q-C3-1 = serviço separado): durabilidade via `litestream.service`
+# (daemon de replicação independente). O worker declara Requires=/After= →
+# arranca DEPOIS da replicação e NÃO corre sem ela (fail-closed na durabilidade).
 
 [Unit]
 Description=HDD Worker
-After=network.target
+After=network.target litestream.service
+Requires=litestream.service
 ConditionPathExists=/etc/hdd/secrets.env
 
 [Service]

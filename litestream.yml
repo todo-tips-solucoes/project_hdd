@@ -1,0 +1,37 @@
+# litestream.yml — Story 1.c.3 (AR-014, AO-38/AO-51, D-04.21).
+#
+# Litestream replica o WAL de SQLite continuamente para Cloudflare R2 EU
+# (primário, RPO ~1s / RTO 5-15s — architecture.md:728). Deploy: copiar para
+# /etc/litestream.yml (lido por `systemd/litestream.service`).
+#
+# PATH DA DB (LER): o worker usa o default `/opt/hdd/.hdd-state.db`
+# (src/bootstrap.ts:39 DEFAULT_DB_PATH="./.hdd-state.db", WorkingDirectory=/opt/hdd).
+# Se override `HDD_DB_PATH` estiver em uso no EnvironmentFile do worker, ESTE path
+# TEM de coincidir (Litestream e worker têm de replicar o MESMO ficheiro). WAL já
+# está ligado em src/db/connection.ts:28 (Litestream exige journal_mode=WAL).
+#
+# CREDENCIAIS R2 (Q-C3-3 = fora do Zod): Litestream lê automaticamente as env
+# LITESTREAM_ACCESS_KEY_ID / LITESTREAM_SECRET_ACCESS_KEY do seu próprio
+# EnvironmentFile 0600 (/etc/litestream/litestream.env). NUNCA hardcode creds aqui.
+
+dbs:
+  - path: /opt/hdd/.hdd-state.db
+    replicas:
+      # --- PRIMÁRIO: Cloudflare R2 EU (produção) ---
+      - type: s3
+        bucket: hdd-backup
+        path: hdd-state
+        # endpoint R2 EU — substituir <ACCOUNT_ID> no deploy (ver runbook):
+        endpoint: https://<ACCOUNT_ID>.eu.r2.cloudflarestorage.com
+        region: auto
+        # D-04.21: retention 24h → restore com ≤24h de perda.
+        retention: 24h
+        retention-check-interval: 1h
+        snapshot-interval: 1h
+        # force-path-style não é necessário com endpoint R2 virtual-hosted.
+
+      # --- DRILL LOCAL (D-053, Q-C3-2): réplica em ficheiro p/ provar
+      # replicate→restore sem R2/creds. Descomentar só durante o drill manual
+      # (ver docs/runbooks/litestream-restore.md). NÃO usar em produção.
+      # - type: file
+      #   path: /var/lib/hdd-litestream-replica
