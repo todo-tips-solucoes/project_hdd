@@ -34,6 +34,18 @@ jobs:
       - name: Test
         run: bun test
 
+      # Story 1.c.4 (AR-017) — gate de segurança explícito (subset rápido).
+      - name: Security suite
+        run: bun run test:security
+
+      # Story 1.c.4 (AR-017/NFR-P1) — binário standalone reproduzível. O smoke
+      # `--help` prova que o binário compilado arranca sem Bun externo. dist/ é
+      # gitignored (artifact, não fonte). Entry = src/cli/hdd-worker.ts (Q-C4-2).
+      - name: Build (compile standalone)
+        run: |
+          bun build --compile src/cli/hdd-worker.ts --outfile dist/hdd-worker
+          ./dist/hdd-worker --help
+
       # Story 1.b.3 (AO-160/166) — gate de redaction de secrets
       - name: Verify redaction (no secret survives)
         run: bun run scripts/verify-redaction.ts
