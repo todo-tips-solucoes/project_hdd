@@ -10,10 +10,13 @@ import asyncio
 import typer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from hdd.adapters.audit.sink import AuditSink
 from hdd.adapters.db import make_engine, make_sessionmaker
 from hdd.adapters.db.gate_store import GateStore
 from hdd.adapters.db.repository import Repository
+from hdd.adapters.lgpd import PiiVault
 from hdd.config import get_settings
+from hdd.contracts.events import EventType, make_event
 from hdd.domain.session import SessionState
 
 app = typer.Typer(help="HDD — orquestração autônoma de software (operador).", no_args_is_help=True)
@@ -86,6 +89,34 @@ def reject(gate_id: str, pin: str) -> None:
         return str(await GateStore(_sessionmaker()).resolve(gate_id, pin, approve=False))
 
     typer.echo(asyncio.run(_go()))
+
+
+@app.command()
+def forget(subject_id: str) -> None:
+    """Direito à exclusão (LGPD): crypto-shredding dos dados do titular.
+
+    Descarta a chave de cifra do titular (dado torna-se irrecuperável) e registra
+    o ato na auditoria — sem PII. SUBJECT_ID deve ser o identificador pseudónimo.
+    """
+
+    async def _go() -> bool:
+        sm = _sessionmaker()
+        shredded = await PiiVault(sm).shred(subject_id)
+        if shredded:
+            await AuditSink(sm).append(
+                make_event(
+                    EventType.LGPD_ERASED,
+                    correlation_id=subject_id,
+                    actor="operator",
+                    payload={"subject_id": subject_id},
+                )
+            )
+        return shredded
+
+    if asyncio.run(_go()):
+        typer.echo(f"titular {subject_id}: chave descartada — dados irrecuperáveis")
+    else:
+        typer.echo(f"titular {subject_id}: nada a descartar (sem chave)")
 
 
 def main() -> None:

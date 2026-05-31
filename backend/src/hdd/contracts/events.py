@@ -26,6 +26,8 @@ class EventType(StrEnum):
     GATE_APPROVED = "gate.approved"
     GATE_REJECTED = "gate.rejected"
     ERROR_RAISED = "error.raised"
+    # LGPD: registro (sem PII) de que o titular exerceu o direito à exclusão.
+    LGPD_ERASED = "lgpd.erased"
 
 
 def new_event_id() -> str:
