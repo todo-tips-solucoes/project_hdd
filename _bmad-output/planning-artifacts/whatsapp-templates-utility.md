@@ -4,12 +4,19 @@ project: projeto_hdd
 date: 2026-05-20
 category: UTILITY
 language: pt_BR
-status: draft (aguarda revisão do operador antes de submeter à Meta)
-endpoint_send_no_vars: "https://clihelper.example.com/principal/apis/mensagem/api-oficial-mensagem-template-sem-variavel/"
-endpoint_send_with_vars: "https://clihelper.example.com/principal/apis/mensagem/api-oficial-mensagem-template/"
+status: refined (Story 3.3 — catálogo tipado em `src/lib/template-catalog.ts`; aguarda submissão do operador)
+endpoint_send_no_vars: "{CLIHELPER_BASE_URL}/principal/apis/mensagem/api-oficial-mensagem-template-sem-variavel/"
+endpoint_send_with_vars: "{CLIHELPER_BASE_URL}/principal/apis/mensagem/api-oficial-mensagem-template/"
+m1_required: [hdd_interrupt_p1, hdd_summary_finalization, hdd_heartbeat]
 ---
 
 # Templates WhatsApp do HDD — Categoria UTILITY
+
+> **Story 3.3 — notas de reconciliação:**
+> - **Domínio:** o `clihelper.example.com` abaixo é placeholder; o real vem de `CLIHELPER_BASE_URL` (env, nunca hardcoded no código).
+> - **Shape `template[]` AUTORITATIVO:** o payload de exemplo no fim deste doc (componentes Meta `{type, sub_type, index, parameters:[{type, text|payload}]}`, `name`=nome do template, `openTicket`/`queueId` numéricos) é a **fonte da verdade**. O `payload-schema.ts` da Story 3.1 assumiu um shape diferente (O-3.1-1) — **reconciliação do adapter é follow-up** (decisão Q-3.3-1=b).
+> - **Catálogo tipado:** `src/lib/template-catalog.ts` (nomes, triggers, var counts, buttons, `m1Required`); tracking de aprovação em `template-submission-status.json` via `scripts/template-submission-status.ts`.
+> - **Buttons:** os payloads abaixo (`p1_mudar_rumo`, `fin_rever`, …) divergem do `PAYLOAD_MAP` (1.a.4) — reconciliação do parser é Story 3.4 (O-3.3-1).
 
 > **Categoria UTILITY** é a mais barata da Meta (vs MARKETING) e adequada porque todas estas mensagens são **notificações de serviço** do próprio pipeline ao seu operador — não promoção. Meta tipicamente aprova UTILITY em 1-3 dias.
 >

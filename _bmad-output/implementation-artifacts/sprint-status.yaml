@@ -39,7 +39,7 @@
 
 generated: 2026-05-22
 last_updated: 2026-05-30
-last_updated_note: "M1 Sprint 1 — Epic 3 2/6; Story 3.2 (bucket+retry+CB) DONE; 372 tests pass"
+last_updated_note: "M1 Sprint 1 — Epic 3 3/6; Story 3.3 (templates+tracking) DONE; 383 tests pass"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -95,7 +95,7 @@ development_status:
   epic-3: in-progress
   3-1-outboundnotifyport-clihelper-adapter: done
   3-2-leaky-bucket-1-req-s-retry-circuit-breaker: done
-  3-3-6-templates-utility-design-register-tracking: backlog
+  3-3-6-templates-utility-design-register-tracking: done
   3-4-inboundcommandport-hono-callback-quick-reply-parsing: backlog
   3-5-nlp-fallback-livre-via-haiku-sdk: backlog
   3-6-resendadapter-fallback-s3: backlog
