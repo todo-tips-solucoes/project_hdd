@@ -68,3 +68,10 @@ class Repository:
         async with self._sm() as s:
             result = await s.execute(select(SessionRow.id))
             return list(result.scalars().all())
+
+    async def list_sessions(self) -> list[tuple[str, str, str]]:
+        async with self._sm() as s:
+            result = await s.execute(
+                select(SessionRow.id, SessionRow.state, SessionRow.task)
+            )
+            return [(r[0], r[1], r[2]) for r in result.all()]

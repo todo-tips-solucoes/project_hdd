@@ -9,6 +9,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import uuid_utils
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from hdd.domain.capability import GateType
@@ -49,6 +50,14 @@ class GateStore:
             s.add(row)
             await s.commit()
         return gid, pin
+
+    async def list_pending(self) -> list[tuple[str, str, str, str]]:
+        async with self._sm() as s:
+            result = await s.execute(
+                select(GateRow.id, GateRow.wave_id, GateRow.gate_type, GateRow.reason)
+                .where(GateRow.status == str(GateStatus.PENDING))
+            )
+            return [(r[0], r[1], r[2], r[3]) for r in result.all()]
 
     async def status(self, gate_id: str) -> GateStatus:
         async with self._sm() as s:
