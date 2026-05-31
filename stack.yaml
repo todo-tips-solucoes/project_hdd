@@ -1,0 +1,148 @@
+# Stack de produção (Docker Swarm) — Story 5.1.
+#
+# Deploy (no nó manager, com as variáveis do deploy.env carregadas):
+#   set -a && . ./deploy.env && set +a
+#   docker stack deploy -c stack.yaml hdd
+#
+# Pré-requisitos: secrets criados (docs/runbooks/secrets.md), imagens buildadas
+# (hdd-api / hdd-worker / hdd-frontend) e DNS de $HDD_DOMAIN apontando para o nó.
+# `docker stack deploy` NÃO lê .env automaticamente — exporte as variáveis antes.
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: hdd
+      POSTGRES_DB: hdd
+      POSTGRES_PASSWORD_FILE: /run/secrets/hdd_postgres_password
+    secrets:
+      - hdd_postgres_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hdd -d hdd"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+      placement:
+        # Volume local: fixa o Postgres no nó manager (1 nó no MVP).
+        constraints: [node.role == manager]
+
+  api:
+    image: ${HDD_IMAGE_API:-hdd-api:latest}
+    # Migrations idempotentes + uvicorn (--proxy-headers: HTTPS via Caddy).
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && exec uvicorn hdd.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
+    environment:
+      HDD_LLM_DRIVER: ${HDD_LLM_DRIVER:-subscription}
+      HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
+      HDD_GITHUB_CLIENT_ID: ${HDD_GITHUB_CLIENT_ID:-}
+      HDD_GITHUB_ALLOWLIST: ${HDD_GITHUB_ALLOWLIST:-}
+      HDD_PANEL_BASE_URL: https://${HDD_DOMAIN}
+      HDD_CORS_ORIGINS: https://${HDD_DOMAIN}
+      HDD_CLIHELPER_BASE_URL: ${HDD_CLIHELPER_BASE_URL:-}
+    secrets:
+      - hdd_pg_dsn
+      - hdd_session_secret
+      - hdd_github_client_secret
+      - hdd_clihelper_token
+      - hdd_webhook_hmac_secret
+    networks:
+      - backend
+      - edge
+    depends_on:
+      - postgres
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  worker:
+    image: ${HDD_IMAGE_WORKER:-hdd-worker:latest}
+    environment:
+      HDD_LLM_DRIVER: ${HDD_LLM_DRIVER:-subscription}
+      HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
+      HDD_MODEL: ${HDD_MODEL:-}
+      # Credenciais geridas via deploy.env (decisão do operador).
+      # Claude Code (conta de assinatura) e GitHub (gh CLI abre o PR rascunho).
+      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
+      GH_TOKEN: ${HDD_GH_TOKEN:-}
+    secrets:
+      - hdd_pg_dsn
+    networks:
+      - backend
+    depends_on:
+      - postgres
+    deploy:
+      # Teto global de claude -p é respeitado pela quota lease (Story 5.2),
+      # então pode-se escalar replicas com segurança.
+      replicas: ${HDD_WORKER_REPLICAS:-1}
+      restart_policy:
+        condition: on-failure
+
+  frontend:
+    image: ${HDD_IMAGE_FRONTEND:-hdd-frontend:latest}
+    networks:
+      - edge
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  caddy:
+    image: caddy:2
+    ports:
+      # mode: host — bind direto no nó (ACME HTTP/TLS e HTTP/3).
+      - {target: 80, published: 80, protocol: tcp, mode: host}
+      - {target: 443, published: 443, protocol: tcp, mode: host}
+      - {target: 443, published: 443, protocol: udp, mode: host}
+    environment:
+      HDD_DOMAIN: ${HDD_DOMAIN}
+      CADDY_ACME_EMAIL: ${CADDY_ACME_EMAIL}
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+networks:
+  edge:
+  backend:
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:
+
+configs:
+  caddyfile:
+    file: ./ops/caddy/Caddyfile
+
+secrets:
+  hdd_pg_dsn:
+    external: true
+  hdd_session_secret:
+    external: true
+  hdd_github_client_secret:
+    external: true
+  hdd_clihelper_token:
+    external: true
+  hdd_webhook_hmac_secret:
+    external: true
+  hdd_postgres_password:
+    external: true

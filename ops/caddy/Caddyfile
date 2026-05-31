@@ -1,0 +1,23 @@
+# Caddy — reverse proxy + TLS automático (Story 5.1).
+# Variáveis vêm do ambiente do serviço caddy (stack.yaml):
+#   {$HDD_DOMAIN}        domínio público do painel (DNS apontando para o nó)
+#   {$CADDY_ACME_EMAIL}  e-mail para o ACME (Let's Encrypt)
+{
+	email {$CADDY_ACME_EMAIL}
+}
+
+{$HDD_DOMAIN} {
+	encode zstd gzip
+
+	# Backend FastAPI: API do painel, OAuth, webhooks e observabilidade.
+	# (SSE em /api/events/stream: reverse_proxy faz streaming sem buffering.)
+	@backend path /api/* /auth/* /webhooks/* /healthz /readyz /metrics /openapi.json /docs
+	handle @backend {
+		reverse_proxy api:8000
+	}
+
+	# Painel Next.js (todo o resto).
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

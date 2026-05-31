@@ -86,22 +86,22 @@ root_package = "hdd"
 name = "domain é puro (não importa camadas externas)"
 type = "forbidden"
 source_modules = ["hdd.domain"]
-forbidden_modules = ["hdd.adapters", "hdd.application", "hdd.api", "hdd.cli", "hdd.contracts"]
+forbidden_modules = ["hdd.adapters", "hdd.application", "hdd.api", "hdd.cli", "hdd.worker", "hdd.contracts"]
 
 [[tool.importlinter.contracts]]
 name = "contracts só dependem de domain"
 type = "forbidden"
 source_modules = ["hdd.contracts"]
-forbidden_modules = ["hdd.adapters", "hdd.application", "hdd.api", "hdd.cli"]
+forbidden_modules = ["hdd.adapters", "hdd.application", "hdd.api", "hdd.cli", "hdd.worker"]
 
 [[tool.importlinter.contracts]]
 name = "application não importa adapters nem entrypoints"
 type = "forbidden"
 source_modules = ["hdd.application"]
-forbidden_modules = ["hdd.adapters", "hdd.api", "hdd.cli"]
+forbidden_modules = ["hdd.adapters", "hdd.api", "hdd.cli", "hdd.worker"]
 
 [[tool.importlinter.contracts]]
 name = "adapters não importam application nem entrypoints"
 type = "forbidden"
 source_modules = ["hdd.adapters"]
-forbidden_modules = ["hdd.application", "hdd.api", "hdd.cli"]
+forbidden_modules = ["hdd.application", "hdd.api", "hdd.cli", "hdd.worker"]
