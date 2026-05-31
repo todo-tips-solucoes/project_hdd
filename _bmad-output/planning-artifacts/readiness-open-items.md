@@ -34,6 +34,8 @@ reescreve o canon a meio** — regista-se aqui e trata-se via **Open Question no
 | **2.1** | `files_created: src/cli/hdd-worker.ts` | **já existe** (1.c.1) | **MODIFY**, não NEW |
 | **2.1** | `files_created: src/cli/start.command.ts` | não existe — `start` está inline (`registerStartCommand` em hdd-worker.ts) | decidir: extrair p/ ficheiro vs manter inline |
 | **2.1** | `files_created: status.command.ts, logs.command.ts` | não existem | NEW (legítimo) |
+| **2.4** | `files_modified: src/core/fsm.ts (add gate state)` | feito: +estado `gate_blocked` + evento `GateBlocked` (Q-2.4-1) | MODIFY legítimo (estava na spec) |
+| **2.6** | `files_modified: src/cli/hdd-worker.ts` (só) | também modifica `src/core/fsm.ts` (+evento `OperatorPaused`, Q-2.6-1=a) | divergência **aceite**: pause precisa de `running→paused_for_interrupt`; evento honesto vs reusar interrupt. Sem novo estado (enum DB intacto) |
 | **2.x (geral)** | vários `files_created` | verificar caso a caso | **regra: no create-story de cada 2.x, confirmar files_created vs realidade antes de assumir NEW** |
 
 > Princípio (retro Sprint 0): **fidelidade à realidade > spec literal**, com a divergência registada aqui para não apodrecer silenciosamente.

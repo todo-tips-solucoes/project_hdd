@@ -9,6 +9,9 @@
  * **7 estados (Q-A4-1 resolved 2026-05-28 → lowercase epics.md AC; `gate_blocked`
  * adicionado na Story 2.4 — Q-2.4-1, gate Story→Dev não-terminal):**
  *
+ * Eventos extra (não na tabela abaixo): `GateBlocked` (running→gate_blocked,
+ * 2.4) e `OperatorPaused` (running→paused_for_interrupt, pause operador — 2.6).
+ *
  * | from \\ event              | StartRun | InterruptP1/S1/S2/S3 | OperatorResponded | OperatorPausedReview | OperatorApproved | OperatorRejected | WindowExhausted | Fail   |
  * |----------------------------|----------|----------------------|-------------------|----------------------|------------------|------------------|-----------------|--------|
  * | idle                       | running  | —                    | —                 | —                    | —                | —                | —               | —      |
@@ -47,6 +50,7 @@ export type FsmEvent =
   | { readonly kind: "InterruptS2" }
   | { readonly kind: "InterruptS3" }
   | { readonly kind: "OperatorResponded" }
+  | { readonly kind: "OperatorPaused" }
   | { readonly kind: "OperatorPausedReview" }
   | { readonly kind: "OperatorApproved" }
   | { readonly kind: "OperatorRejected" }
@@ -63,6 +67,7 @@ export const ALL_EVENT_KINDS: ReadonlyArray<FsmEventKind> = [
   "InterruptS2",
   "InterruptS3",
   "OperatorResponded",
+  "OperatorPaused",
   "OperatorPausedReview",
   "OperatorApproved",
   "OperatorRejected",
@@ -88,6 +93,7 @@ export const TRANSITION_TABLE: Readonly<Record<FsmState, Partial<Record<FsmEvent
       InterruptS1: "paused_for_interrupt",
       InterruptS2: "paused_for_interrupt",
       InterruptS3: "paused_for_interrupt",
+      OperatorPaused: "paused_for_interrupt",
       OperatorPausedReview: "paused_awaiting_review",
       WindowExhausted: "paused_window_exhausted",
       GateBlocked: "gate_blocked",

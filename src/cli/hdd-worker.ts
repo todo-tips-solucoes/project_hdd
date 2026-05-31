@@ -8,15 +8,17 @@
  * Biome maxLines 200 + testabilidade. Ordem do `--help`: start, pause, resume,
  * status, logs, review.
  *
- * **Fronteira Story 2.6:** `pause`/`resume` são STUBS aqui (aparecem no `--help`,
- * mas a lógica FSM/lifecycle é da Story 2.6, que os substitui por ficheiros
- * próprios). NÃO implementar lifecycle nesta story.
+ * **Story 2.6:** `pause`/`resume` deixaram de ser stubs — `registerPauseCommand`/
+ * `registerResumeCommand` (worker-lifecycle: FSM + persistência). `registerStubCommand`
+ * mantém-se exportado para stubs futuros.
  *
  * `import.meta.main` guard permite import em tests sem auto-executar parse.
  */
 
 import { Command } from "commander";
 import { registerLogsCommand } from "./logs.command.ts";
+import { registerPauseCommand } from "./pause.command.ts";
+import { registerResumeCommand } from "./resume.command.ts";
 import { registerReviewCommand } from "./review.command.ts";
 import { registerStartCommand } from "./start.command.ts";
 import { registerStatusCommand } from "./status.command.ts";
@@ -49,16 +51,8 @@ export function createCli(): Command {
     .version("0.0.1");
 
   registerStartCommand(program);
-  registerStubCommand(program, {
-    name: "pause",
-    description: "Pausa o worker (Story 2.6 — lifecycle)",
-    hint: "pause: diferido para a Story 2.6 (worker lifecycle)",
-  });
-  registerStubCommand(program, {
-    name: "resume",
-    description: "Retoma o worker (Story 2.6 — lifecycle)",
-    hint: "resume: diferido para a Story 2.6 (worker lifecycle)",
-  });
+  registerPauseCommand(program);
+  registerResumeCommand(program);
   registerStatusCommand(program);
   registerLogsCommand(program);
   registerReviewCommand(program);
