@@ -39,7 +39,7 @@
 
 generated: 2026-05-22
 last_updated: 2026-05-30
-last_updated_note: "M1 Sprint 1 — Story 2.7 DONE; EPIC 2 FECHADO 7/7; 351 tests pass; epic-2-retrospective optional"
+last_updated_note: "M1 Sprint 1 — EPIC 2 FECHADO 7/7 + retro done; 351 tests pass; AI-E2-1 correct-course epics.md ANTES do Epic 3"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -89,7 +89,7 @@ development_status:
   2-5-gate-dev-review-test-suite-verde: done
   2-6-worker-lifecycle-start-pause-resume: done
   2-7-devoutput-reviewoutput-qaoutput-schemas-concretos: done
-  epic-2-retrospective: optional
+  epic-2-retrospective: done
 
   # ===== Epic 3: Canal WhatsApp (clihelper) + Fallback E-mail =====
   epic-3: backlog

@@ -4,11 +4,20 @@ Registo único de itens diferidos + divergências spec-vs-realidade. Cada item t
 um **trigger** (condição de reabertura) — anti `soft-convention-rot` (benefícios
 optimistas viram dívida sem TTL). Consolidado na retro do Sprint 0 (AI-S0-3).
 
+## Action items da retro do Epic 2 (AI-E2-*, 2026-05-31)
+
+| ID | Action item | Decisão do Project Lead | Trigger |
+|---|---|---|---|
+| **AI-E2-1** | Reconciliar `epics.md` com a realidade registada (paga AI-S0-4: divergências 2.1/2.4/2.6/2.7). | **correct-course pass ANTES do Epic 3** | correr antes da Story 3.1; canon alinhado |
+| **AI-E2-2** | Extrair abstracções partilhadas: `DiagnosticWriter`→port (O-2.5-1, já 2 callers), `RunStateRepository` (O-2.6-1), reconciliar `devOutputSchema` 2.3↔2.7 (O-2.7-1). | **regra dura: extrair ao 3º caller** | aparecer o 3º consumidor de qualquer uma → extrair nessa story |
+| **AI-E2-3** | Spot-check arquitectura×epics×memórias do schema clihelper (O-B5-3) antes de implementar. | **Sim, no create-story da 3.1** | arranque da Story 3.1 |
+
 ## Open items diferidos
 
 | ID | Aberto | Descrição | Trigger / TTL |
 |---|---|---|---|
-| **O-B5-3 / AO-86** | 2026-05-29 | schema clihelper inbound real ainda não recebido; `webhook-mock=true` mantido. | quando o schema chegar → `bun run check:webhook-schema` + remover o mock |
+| **O-B5-3 / AO-86** | 2026-05-29 | schema clihelper inbound real ainda não recebido; `webhook-mock=true` mantido. | quando o schema chegar → `bun run check:webhook-schema` + remover o mock (cruza AI-E2-3) |
+| **O-2.5-1 / O-2.6-1 / O-2.7-1** | 2026-05-31 | extracções diferidas: `DiagnosticWriter` port, `RunStateRepository`, reconciliação `devOutputSchema`. | **AI-E2-2** — extrair ao 3º caller |
 | **O-C1-1** | 2026-05-29 | `dev` script (`bun --hot src/main.ts`) não serve `/healthz`; divergente de `hdd-worker start`. | **Epic 2 / Story 2.1** (mexe em `main.ts`/`hdd-worker.ts`) — consolidar entries |
 | **O-C2-1** | 2026-05-29 | wire `CLIHELPER_TOKEN` no cliente HTTP clihelper (só está no schema Zod). | Epic 3 (outbound clihelper) |
 | **O-C4-2** | 2026-05-30 | `license-checker` no `release.yml` não validado com node_modules do bun. | 1º run do `release.yml` (push de tag `v*`) → ajustar se falhar |
