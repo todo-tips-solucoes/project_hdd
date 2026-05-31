@@ -15,6 +15,7 @@
 
 import type { Command } from "commander";
 import { createSystemClockAdapter } from "../adapters/clock/system-clock.adapter.ts";
+import { createCallbackApp } from "../adapters/whatsapp/callback-listener.adapter.ts";
 import { type BootError, type BootResult, bootstrap } from "../bootstrap.ts";
 import type { Result } from "../lib/result.ts";
 import type { ClockPort } from "../ports/clock.port.ts";
@@ -62,8 +63,24 @@ export function registerStartCommand(program: Command, deps: StartDeps = {}): vo
       const clock = deps.clock ?? createSystemClockAdapter();
       const bootEpochMs = deps.bootEpochMs ?? Date.now();
       const app = createHealthzApp({ clock, bootEpochMs });
+
+      // Story 3.4: monta `/callback` (inbound n8n) no mesmo servidor. Config via
+      // env (fail-closed: allowlist vazia → tudo dropped; mock default = AO-86).
+      const { N8N_CALLBACK_TOKEN, HDD_ALLOWED_WAIDS, HDD_WEBHOOK_MOCK } = process.env;
+      const callbackApp = createCallbackApp({
+        audit: boot.value.audit,
+        clock,
+        allowedWaIds: (HDD_ALLOWED_WAIDS ?? "")
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        webhookMock: HDD_WEBHOOK_MOCK !== "false",
+        ...(N8N_CALLBACK_TOKEN !== undefined ? { n8nToken: N8N_CALLBACK_TOKEN } : {}),
+      });
+      app.route("/", callbackApp);
+
       const serve = deps.serve ?? ((o: Parameters<ServeFn>[0]) => Bun.serve(o));
       serve({ port, fetch: app.fetch });
-      stdout(`hdd-worker started (${projectName}) — /healthz on :${port}\n`);
+      stdout(`hdd-worker started (${projectName}) — /healthz + /callback on :${port}\n`);
     });
 }
