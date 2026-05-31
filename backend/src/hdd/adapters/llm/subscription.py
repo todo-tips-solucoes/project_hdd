@@ -1,0 +1,63 @@
+"""Driver `subscription`: invoca `claude -p` headless (conta de assinatura).
+
+Implementa a porta LLMProvider. Reaproveita o que a PoC (Story 1.1) provou.
+
+⚠️ DESCOBERTA da PoC: `claude -p` é um agente Claude Code COMPLETO (ferramentas
+Write/Edit/Bash + contexto do projeto), não um LLM puro — produz efeitos
+colaterais a partir do texto da tarefa (G-1/G-2). Mitigação obrigatória aqui:
+bloquear ferramentas de escrita/execução por padrão. No worker (Story 2.x) isto
+soma-se ao sandbox isolado e ao capability broker.
+"""
+from __future__ import annotations
+
+import json
+import subprocess
+
+from hdd.contracts.dtos import LlmResult
+
+QUOTA_MARKERS = ("usage limit", "rate limit", "quota", "limit reached", "overloaded")
+DEFAULT_DISALLOWED = ("Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "WebFetch")
+
+
+def detect_quota(stdout: str, stderr: str, exit_code: int) -> bool:
+    combined = (stdout + stderr).lower()
+    return exit_code != 0 and any(m in combined for m in QUOTA_MARKERS)
+
+
+class ClaudeSubscriptionProvider:
+    """LLMProvider — driver subscription."""
+
+    def __init__(
+        self,
+        model: str | None = None,
+        timeout: int = 120,
+        disallowed_tools: tuple[str, ...] = DEFAULT_DISALLOWED,
+    ) -> None:
+        self.model = model
+        self.timeout = timeout
+        self.disallowed_tools = disallowed_tools
+
+    def invoke(self, prompt: str) -> LlmResult:
+        cmd = ["claude", "-p", prompt, "--output-format", "json"]
+        if self.model:
+            cmd += ["--model", self.model]
+        if self.disallowed_tools:
+            cmd += ["--disallowedTools", *self.disallowed_tools]
+
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout)
+        out = proc.stdout.strip()
+        text, session_id = out, None
+        try:
+            data = json.loads(out)
+            text = str(data.get("result", out))
+            sid = data.get("session_id")
+            session_id = str(sid) if sid is not None else None
+        except json.JSONDecodeError:
+            pass
+        return LlmResult(
+            text=text,
+            session_id=session_id,
+            exit_code=proc.returncode,
+            quota_exhausted=detect_quota(proc.stdout, proc.stderr, proc.returncode),
+            raw=out,
+        )

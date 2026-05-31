@@ -1,0 +1,5 @@
+"""Configuração — pydantic-settings (lê de env / /run/secrets)."""
+
+from .settings import Settings, get_settings
+
+__all__ = ["Settings", "get_settings"]

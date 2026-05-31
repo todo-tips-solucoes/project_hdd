@@ -10,6 +10,9 @@ import pytest
 from hdd_poc import db, engine, llm
 from hdd_poc.llm import ClaudeSubscriptionProvider, detect_quota
 
+# Evidência do gate de fundação (Story 1.1). Custa quota — opt-in: `pytest -m integration`.
+pytestmark = pytest.mark.integration
+
 TASK = "registrar um marcador"
 
 
