@@ -54,3 +54,20 @@ class WorkQueue:
                 {"i": work_id},
             )
             await s.commit()
+
+    async def requeue(self, work_id: str) -> None:
+        """Devolve o item à fila (ex.: sem slot de quota). Preserva created_at → ordem FIFO."""
+        async with self._sm() as s:
+            await s.execute(
+                text("UPDATE app.work_queue SET status = 'pending' WHERE id = :i"),
+                {"i": work_id},
+            )
+            await s.commit()
+
+    async def fail(self, work_id: str) -> None:
+        async with self._sm() as s:
+            await s.execute(
+                text("UPDATE app.work_queue SET status = 'failed' WHERE id = :i"),
+                {"i": work_id},
+            )
+            await s.commit()
