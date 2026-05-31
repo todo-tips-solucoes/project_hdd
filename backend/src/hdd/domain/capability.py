@@ -93,3 +93,11 @@ def classify(action: ProposedAction) -> BrokerDecision:
         return BrokerDecision(False, GateType.INFRA, "infra sensível")
 
     return BrokerDecision(True, None, "ação benigna")
+
+
+def authorize(action: ProposedAction) -> None:
+    """Autoriza por regra ou levanta GateRequired (suspende a onda). Não usa LLM."""
+    decision = classify(action)
+    if not decision.allowed:
+        assert decision.gate is not None  # invariante: not allowed ⇒ gate
+        raise GateRequired(decision.gate, decision.reason)

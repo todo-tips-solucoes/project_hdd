@@ -47,3 +47,25 @@ class WaveRow(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class GateRow(Base):
+    __tablename__ = "gates"
+    __table_args__ = {"schema": "app"}
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid7)
+    wave_id: Mapped[str] = mapped_column(String, nullable=False)
+    gate_type: Mapped[str] = mapped_column(String, nullable=False)
+    reason: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False)
+    pin_hash: Mapped[str] = mapped_column(String, nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+# app.work_queue e app.quota_counter são manipuladas por SQL direto
+# (SKIP LOCKED / FOR UPDATE) em adapters/db/{queue,quota}.py.
