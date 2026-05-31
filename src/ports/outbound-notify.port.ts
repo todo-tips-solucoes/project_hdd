@@ -25,7 +25,9 @@ export type OutboundNotifyError =
   | { readonly kind: "Transient"; readonly cause: string }
   | { readonly kind: "Permanent"; readonly cause: string }
   | { readonly kind: "RateLimited"; readonly retryAfterMs: number }
-  | { readonly kind: "PayloadInvalid"; readonly detail: string };
+  | { readonly kind: "PayloadInvalid"; readonly detail: string }
+  // Story 3.2 (Q-3.2-2): circuit breaker aberto — fail-fast sem POST.
+  | { readonly kind: "CircuitOpen"; readonly resetAt: Date };
 
 export type SendResult = {
   readonly endpoint: string;
