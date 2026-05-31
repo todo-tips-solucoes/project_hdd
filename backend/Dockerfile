@@ -64,4 +64,8 @@ RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
  && rm -rf /var/lib/apt/lists/*
 COPY --from=builder --chown=10001:10001 /app /app
 USER 10001:10001
+# Liveness: o loop atualiza /tmp/hdd-worker.alive a cada iteração e durante
+# ondas longas; considera-se morto se o arquivo passar de 90s sem atualizar.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD python -c "import os,sys,time; p='/tmp/hdd-worker.alive'; sys.exit(0 if os.path.exists(p) and time.time()-os.path.getmtime(p) < 90 else 1)"
 CMD ["python", "-m", "hdd.worker"]

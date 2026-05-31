@@ -11,7 +11,9 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import time
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Protocol
 
 from hdd.observability import get_logger
@@ -45,6 +47,7 @@ class WorkerLoop:
         poll_interval: float = 2.0,
         full_backoff: float = 5.0,
         heartbeat_interval: float = 30.0,
+        liveness_path: str | None = None,
     ) -> None:
         self._queue = queue
         self._quota = quota
@@ -53,6 +56,13 @@ class WorkerLoop:
         self._poll = poll_interval
         self._backoff = full_backoff
         self._hb_interval = heartbeat_interval
+        # Arquivo de liveness para o HEALTHCHECK do container: atualizado a cada
+        # iteração e durante ondas longas (prova que o loop não travou).
+        self._liveness = Path(liveness_path) if liveness_path else None
+
+    def _beat(self) -> None:
+        if self._liveness is not None:
+            self._liveness.write_text(str(time.time()))
 
     async def _heartbeat(self, lease_id: str) -> None:
         while True:
@@ -60,6 +70,7 @@ class WorkerLoop:
             if not await self._quota.renew(lease_id):
                 # TTL >> heartbeat: só chega aqui se o worker ficou preso > TTL.
                 log.warning("worker.lease_perdido", lease_id=lease_id)
+            self._beat()
 
     async def _run_item(self, work_id: str, payload: str, lease_id: str) -> None:
         hb = asyncio.create_task(self._heartbeat(lease_id))
@@ -93,6 +104,7 @@ class WorkerLoop:
     async def run_forever(self, stop: asyncio.Event) -> None:
         log.info("worker.loop_iniciado", worker_id=self._worker_id)
         while not stop.is_set():
+            self._beat()
             outcome = await self.run_once()
             if outcome == "done":
                 delay = 0.0

@@ -32,6 +32,7 @@ async def _run() -> None:
         quota=QuotaLease(sm),
         run_wave=build_wave_runner(settings),
         worker_id=worker_id,
+        liveness_path="/tmp/hdd-worker.alive",  # noqa: S108 — HEALTHCHECK do container
     )
 
     stop = asyncio.Event()
