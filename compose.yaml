@@ -1,0 +1,20 @@
+# Infra de desenvolvimento local (dev). Produção usa stack.yaml (Swarm).
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: hdd
+      POSTGRES_PASSWORD: hdd_dev
+      POSTGRES_DB: hdd
+    ports:
+      - "5433:5432"   # host 5433 para não colidir com Postgres local
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hdd -d hdd"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  pgdata:

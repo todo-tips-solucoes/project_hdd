@@ -14,9 +14,18 @@ _bmad/custom/config.user.toml
 !.env.example
 !.env.*.example
 
-# Bun / Node build & dependency artefacts — gerados pelo runtime (Story 1.a.1).
-# bun.lockb fica committable (reproducibilidade); node_modules nunca.
+# Python / uv (HDD v2 — backend). uv.lock fica committable (reproducibilidade);
+# .venv e caches nunca.
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node / Next.js (frontend, futuro). node_modules nunca committable.
 node_modules/
+.next/
 dist/
 coverage/
 *.tsbuildinfo
