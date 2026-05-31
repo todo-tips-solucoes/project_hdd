@@ -13,7 +13,13 @@ from .events import EventEnvelope
 
 @runtime_checkable
 class LLMProvider(Protocol):
-    """Motor LLM. Driver `subscription` (claude -p) ou `api` (escala) — RF-12."""
+    """Motor LLM. Driver `subscription` (claude -p) ou `api` (escala) — RF-12.
+
+    Contrato (R-12/R-14): em sucesso retorna LlmResult; em falha levanta a
+    classe de erro mapeada do exit-code — `QuotaExhausted` (limite da conta,
+    pausar) ou `TransientError` (falha/timeout, reintentar). Credenciais são
+    injetadas por ambiente e nunca logadas.
+    """
 
     def invoke(self, prompt: str) -> LlmResult: ...
 

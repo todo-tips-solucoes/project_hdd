@@ -14,6 +14,7 @@ import json
 import subprocess
 
 from hdd.contracts.dtos import LlmResult
+from hdd.domain.errors import QuotaExhausted, TransientError
 
 QUOTA_MARKERS = ("usage limit", "rate limit", "quota", "limit reached", "overloaded")
 DEFAULT_DISALLOWED = ("Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "WebFetch")
@@ -44,7 +45,19 @@ class ClaudeSubscriptionProvider:
         if self.disallowed_tools:
             cmd += ["--disallowedTools", *self.disallowed_tools]
 
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=self.timeout)
+        try:
+            proc = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=self.timeout
+            )
+        except subprocess.TimeoutExpired as exc:  # transitório: vale reintentar
+            raise TransientError(f"claude -p excedeu timeout ({self.timeout}s)") from exc
+
+        # Mapeamento exit-code → classe de erro (taxonomia R-12).
+        if proc.returncode != 0:
+            if detect_quota(proc.stdout, proc.stderr, proc.returncode):
+                raise QuotaExhausted("claude -p atingiu limite de uso da conta")
+            raise TransientError(f"claude -p falhou (exit {proc.returncode})")
+
         out = proc.stdout.strip()
         text, session_id = out, None
         try:
@@ -58,6 +71,6 @@ class ClaudeSubscriptionProvider:
             text=text,
             session_id=session_id,
             exit_code=proc.returncode,
-            quota_exhausted=detect_quota(proc.stdout, proc.stderr, proc.returncode),
+            quota_exhausted=False,
             raw=out,
         )
