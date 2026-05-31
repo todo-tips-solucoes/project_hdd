@@ -1,9 +1,0 @@
-{
-  "_comment": "Estado MANUAL de submissão dos templates à Meta (via UI do clihelper, sem API). O operador actualiza pending->submitted->approved/rejected à medida que a Meta responde. Lido por scripts/template-submission-status.ts. M1 viable = hdd_interrupt_p1 + hdd_summary_finalization + hdd_heartbeat == approved.",
-  "hdd_interrupt_p1": "pending",
-  "hdd_interrupt_s1": "pending",
-  "hdd_interrupt_s2": "pending",
-  "hdd_summary_finalization": "pending",
-  "hdd_heartbeat": "pending",
-  "hdd_release_final": "pending"
-}
