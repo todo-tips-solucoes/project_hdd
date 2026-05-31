@@ -1,7 +1,7 @@
 # Prompt de continuação — HDD v2 (sessão fresca)
 
 > Cole o conteúdo abaixo (ou aponte para este arquivo) ao iniciar uma nova sessão.
-> Estado em: 2026-05-31, após Epic 3. Checkpoint do operador.
+> Estado em: 2026-05-31, após Epic 4 (Operação Remota). Checkpoint do operador.
 
 ---
 
@@ -33,23 +33,18 @@ Em 2026-05-31 o operador rejeitou a v1 (um bot WhatsApp em Bun) e reiniciou do z
 
 `claude -p` **NÃO é um LLM puro — é um agente Claude Code completo** (ferramentas Write/Edit/Bash + contexto do projeto + memória). Na PoC ele criou efeitos colaterais a partir do texto da tarefa. Mitigação aplicada no adapter (`--disallowedTools Write Edit MultiEdit NotebookEdit Bash WebFetch`) + sandbox Docker isolado (Story 2.3) + capability broker determinístico (Story 2.4). **Nunca invoque `claude -p` para o worker sem disallowed-tools + sandbox.**
 
-## O que já está PRONTO (Epics 1–3, 20/31 histórias)
+## O que já está PRONTO (Epics 1–4, 25/31 histórias)
 
 - **Epic 1 (Fundação, 5/5):** scaffold hexagonal; PoC de fundação GO (LangGraph+`claude -p`+checkpoint, 5 critérios em `tests/integration/test_*` via `hdd_poc`); schemas `app`/`langgraph` + role `app_rw`; contratos das 6 portas; abstração de provider.
 - **Epic 2 (Execução Autônoma Segura, 9/9):** FSMs de Sessão/Onda + persistência; fila Postgres SKIP LOCKED + quota lease global; sandbox endurecido; capability broker; gate manager (PIN/timeout); orquestrador LangGraph da onda (plan→execute→verify→correct→gate); retry policy; GitHubVcs (PR rascunho); CLI Typer (`hdd start/status/gates/approve/reject`).
 - **Epic 3 (Rastreabilidade, 6/6):** audit sink hash-chain + role + trigger; catálogo de eventos + emissão; âncora WORM assinada; memória pgvector + pseudonimização PII; observabilidade (Prometheus/health/OTel) + dashboard Grafana.
 
-Tudo com **ruff + mypy --strict + import-linter + pytest verdes**. 6 migrations (schemas app/langgraph/audit/memory).
+- **Epic 4 (Operação Remota, 5/5):** app FastAPI em `backend/src/hdd/api/` — 4.1 GitHub OAuth (Authlib) + sessão httpOnly + allowlist fail-closed; 4.2 SSE `/api/events/stream` (EventReader tail de `audit.events`) + snapshot `/api/waves` + tipos TS do OpenAPI; 4.3 fila de gates aprovada NO PAINEL (`GateStore.resolve_authenticated` sem PIN — canal OAuth é a autorização; decisão grava audit + transiciona onda + notifica); 4.4 `ClihelperNotifier` com leaky-bucket persistente (`app.notifier_bucket`, ≤1 req/s); 4.5 webhook inbound `/webhooks/n8n` (HMAC fail-closed + idempotency + schema mínimo). Painel **Next.js 16** em `frontend/` (Tailwind v4, TanStack Query, Framer Motion, shadcn-style): login, dashboard ondas+SSE, fila/detalhe de gates.
+
+Tudo com **ruff + mypy --strict + import-linter + pytest verdes** (64 unit + 26 integração). 7 migrations (app/langgraph/audit/memory + notifier_bucket/webhook_inbox). Build do painel verde (`next build`).
 
 ## O que FALTA
 
-- **Epic 4 — Operação Remota (0/5):**
-  - 4.1 Auth do Painel (GitHub OAuth) + sessão httpOnly
-  - 4.2 Painel: dashboard de ondas em tempo real (SSE) + tipos TS do OpenAPI
-  - 4.3 Painel: fila de gates (aprovar/rejeitar no canal autenticado)
-  - 4.4 Notifier outbound (clihelper, leaky-bucket persistente ≤1 req/s) + resumos narrativos
-  - 4.5 Webhook inbound (n8n, HMAC + idempotency) + notificação de gate com deep link
-  - **Nota:** falta criar a app FastAPI em `backend/src/hdd/api/` (hoje só esqueleto). A aprovação de gate ocorre NO PAINEL (não no WhatsApp).
 - **Epic 5 — Produção & Conformidade (0/6):**
   - 5.1 Dockerfiles multi-stage + Caddy/TLS + `stack.yaml` (Swarm)
   - 5.2 Quota lease global enforçado entre workers (counter já existe; falta o loop do worker)
@@ -65,19 +60,25 @@ export PATH="$HOME/.local/bin:$PATH"            # uv
 docker compose up -d postgres                    # Postgres 17 + pgvector na porta host 5433
 cd backend
 uv sync                                          # instala Python 3.13+ e deps
-uv run alembic upgrade head                      # aplica as 6 migrations
+uv run alembic upgrade head                      # aplica as 7 migrations
 uv run ruff check . && uv run mypy && uv run lint-imports
 uv run pytest                                    # testes UNIT (rápidos)
 uv run pytest -m integration tests/integration/  # testes de INTEGRAÇÃO (precisam do Postgres)
 uv run pytest -m integration tests/test_poc.py   # PoC do gate (CUSTA QUOTA — opt-in)
 uv run hdd --help                                # CLI do operador
+uv run uvicorn hdd.api.app:app --port 8000       # API do painel (Epic 4)
+uv run python scripts/export_openapi.py openapi.json  # regenera o contrato OpenAPI
+
+# Painel (Next.js 16) — em frontend/:
+cd ../frontend && npm install && cp .env.example .env.local && npm run dev  # :3000
+# npm run typegen  → regenera src/lib/api-types.ts do OpenAPI (sem drift)
 ```
 
 Gotchas do ambiente: host tem Python 3.8 (use uv); Postgres exposto em **5433** (não 5432); `claude` CLI 2.1.158 já autenticado na conta; `/run/secrets` não existe em dev (settings trata). DSN default: `postgresql://hdd:hdd_dev@localhost:5433/hdd`.
 
 ## Git
 
-Branch `main`, remote `origin` = `github.com/todo-tips-solucoes/project_hdd.git`. **11 commits locais desde o reboot, ainda NÃO enviados** — o operador pode querer `git push origin main` (se houver `.github/workflows/*`, lembre `gh auth refresh -s workflow` antes). Tag `legacy/bun-whatsapp-v1` preserva a v1. Comite por história/grupo com Conventional Commits; não comite `.claude/settings.local.json`.
+Branch `main`, remote `origin` = `github.com/todo-tips-solucoes/project_hdd.git`. Histórico até Epic 3 já enviado (`origin/main` estava em `c0d9676`); **2 commits do Epic 4 (backend `58587d0` + painel) ainda NÃO enviados** — o operador pode querer `git push origin main` (se houver `.github/workflows/*`, lembre `gh auth refresh -s workflow` antes). Tag `legacy/bun-whatsapp-v1` preserva a v1. Comite por história/grupo com Conventional Commits; não comite `.claude/settings.local.json`.
 
 ## Modo de trabalho preferido do operador
 
@@ -89,4 +90,4 @@ Branch `main`, remote `origin` = `github.com/todo-tips-solucoes/project_hdd.git`
 
 ## Sugestão de retomada
 
-Comece pelo **Epic 4, Story 4.1 + 4.2**: criar a app FastAPI (`api/`), GitHub OAuth, e o endpoint SSE do dashboard de ondas — depois o frontend Next.js. Confirme com o operador se quer o frontend Next.js real ou apenas a API + um painel mínimo primeiro.
+Epic 4 concluído (backend FastAPI + painel Next.js real). Comece o **Epic 5 (Produção & Conformidade)** — sugestão de ordem: **5.1** Dockerfiles multi-stage (backend + frontend) + Caddy/TLS + `stack.yaml` (Swarm); **5.3** CI completo (já há `.github/workflows` Python — estender com openapi-drift usando `scripts/export_openapi.py`, mypy, import-linter, pytest, scan); **5.4** Docker Swarm secrets; **5.2** loop do worker com quota lease global; **5.5** backups WAL/PITR → R2; **5.6** LGPD (crypto-shredding). Confirme com o operador a ordem e se o deploy-alvo (VPS Hetzner) está disponível para 5.1.
