@@ -10,7 +10,7 @@
  */
 
 import type { ZodType } from "zod";
-import { err, ok, type Result } from "../../lib/result.ts";
+import { err, ok, type Result, type ResultAsync } from "../../lib/result.ts";
 import type {
   BmadError,
   BmadInvokeOptions,
@@ -19,6 +19,24 @@ import type {
   BmadResult,
 } from "../../ports/bmad-invoker.port.ts";
 import type { SpawnOptions, SpawnPort } from "../../ports/spawn.port.ts";
+import {
+  type DevOutput,
+  devOutputSchema,
+  type QAOutput,
+  qaOutputSchema,
+  type ReviewOutput,
+  reviewOutputSchema,
+} from "../../ports/sub-agent-outputs.port.ts";
+
+/**
+ * `BmadInvokerPort` + wrappers tipados que ligam os schemas concretos da Story 2.7
+ * (Q-2.7-2). Cada wrapper delega em `runParsed` com o schema `.strict()` respectivo.
+ */
+export interface CliWrapperInvoker extends BmadInvokerPort {
+  runDevOutput(skill: string, opts?: BmadInvokeOptions): ResultAsync<DevOutput, BmadError>;
+  runReviewOutput(skill: string, opts?: BmadInvokeOptions): ResultAsync<ReviewOutput, BmadError>;
+  runQaOutput(skill: string, opts?: BmadInvokeOptions): ResultAsync<QAOutput, BmadError>;
+}
 
 const CLAUDE_BIN = "claude";
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -71,7 +89,7 @@ function extractResult(stdout: string): Result<{ result: string; isError: boolea
   return err({ kind: "BmadOutputMalformed", detail: "sem evento type:'result' no stream-json" });
 }
 
-export function createCliWrapperAdapter(deps: CliWrapperDeps): BmadInvokerPort {
+export function createCliWrapperAdapter(deps: CliWrapperDeps): CliWrapperInvoker {
   const bin = deps.claudeBin ?? CLAUDE_BIN;
 
   const run = (skill: string, opts?: BmadInvokeOptions) => {
@@ -97,20 +115,25 @@ export function createCliWrapperAdapter(deps: CliWrapperDeps): BmadInvokerPort {
       });
   };
 
+  const runParsed = <T>(skill: string, schema: ZodType<T>, opts?: BmadInvokeOptions) =>
+    run(skill, opts).andThen((r): Result<T, BmadError> => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(r.result);
+      } catch {
+        return err({ kind: "BmadOutputMalformed", detail: "'.result' não é JSON válido" });
+      }
+      const v = schema.safeParse(parsed);
+      if (!v.success) return err({ kind: "BmadOutputMalformed", detail: v.error.message });
+      return ok(v.data);
+    });
+
   return {
     run,
-    runParsed<T>(skill: string, schema: ZodType<T>, opts?: BmadInvokeOptions) {
-      return run(skill, opts).andThen((r): Result<T, BmadError> => {
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(r.result);
-        } catch {
-          return err({ kind: "BmadOutputMalformed", detail: "'.result' não é JSON válido" });
-        }
-        const v = schema.safeParse(parsed);
-        if (!v.success) return err({ kind: "BmadOutputMalformed", detail: v.error.message });
-        return ok(v.data);
-      });
-    },
+    runParsed,
+    // Wrappers tipados (Story 2.7, Q-2.7-2) — usam os schemas concretos.
+    runDevOutput: (skill, opts) => runParsed(skill, devOutputSchema, opts),
+    runReviewOutput: (skill, opts) => runParsed(skill, reviewOutputSchema, opts),
+    runQaOutput: (skill, opts) => runParsed(skill, qaOutputSchema, opts),
   };
 }

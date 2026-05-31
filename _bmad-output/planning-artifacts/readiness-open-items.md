@@ -36,6 +36,7 @@ reescreve o canon a meio** — regista-se aqui e trata-se via **Open Question no
 | **2.1** | `files_created: status.command.ts, logs.command.ts` | não existem | NEW (legítimo) |
 | **2.4** | `files_modified: src/core/fsm.ts (add gate state)` | feito: +estado `gate_blocked` + evento `GateBlocked` (Q-2.4-1) | MODIFY legítimo (estava na spec) |
 | **2.6** | `files_modified: src/cli/hdd-worker.ts` (só) | também modifica `src/core/fsm.ts` (+evento `OperatorPaused`, Q-2.6-1=a) | divergência **aceite**: pause precisa de `running→paused_for_interrupt`; evento honesto vs reusar interrupt. Sem novo estado (enum DB intacto) |
+| **2.7** | AC2 do epics: `verdict: 'pass'\|'fail-gap'\|'fail-bug'` | arquitectura (AO-106, Step 05/06): `'APPROVED'\|'APPROVED_WITH_WARNINGS'\|'REJECTED'\|'BLOCKED_P1'` | **conflito resolvido p/ arquitectura** (Q-2.7-1=a); enum do epics-AC era esboço superado; AC2 ("rejeita unsure") preservada |
 | **2.x (geral)** | vários `files_created` | verificar caso a caso | **regra: no create-story de cada 2.x, confirmar files_created vs realidade antes de assumir NEW** |
 
 > Princípio (retro Sprint 0): **fidelidade à realidade > spec literal**, com a divergência registada aqui para não apodrecer silenciosamente.

@@ -39,7 +39,7 @@
 
 generated: 2026-05-22
 last_updated: 2026-05-30
-last_updated_note: "M1 Sprint 1 — Story 2.6 (worker lifecycle) DONE; epic-2 6/7; 341 tests pass"
+last_updated_note: "M1 Sprint 1 — Story 2.7 DONE; EPIC 2 FECHADO 7/7; 351 tests pass; epic-2-retrospective optional"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -81,14 +81,14 @@ development_status:
   epic-1c-retrospective: done
 
   # ===== Epic 2: Worker Autónomo & Pipeline Bimodal =====
-  epic-2: in-progress
+  epic-2: done
   2-1-hdd-worker-cli-commander-scaffold: done
   2-2-bmad-invoker-port-cli-wrapper-adapter: done
   2-3-sub-agent-context-isolation-per-workflow: done
   2-4-gate-story-dev-ac-validation: done
   2-5-gate-dev-review-test-suite-verde: done
   2-6-worker-lifecycle-start-pause-resume: done
-  2-7-devoutput-reviewoutput-qaoutput-schemas-concretos: backlog
+  2-7-devoutput-reviewoutput-qaoutput-schemas-concretos: done
   epic-2-retrospective: optional
 
   # ===== Epic 3: Canal WhatsApp (clihelper) + Fallback E-mail =====
