@@ -8,16 +8,37 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from hdd.contracts.events import EventType, make_event
+from hdd.contracts.ports import AuditSink
 from hdd.domain import session as session_fsm
 from hdd.domain import wave as wave_fsm
 from hdd.domain.errors import DomainError
 
 from .models import SessionRow, WaveRow
 
+# Mapa transição-da-onda → evento de auditoria (catálogo fechado, 3.2).
+_WAVE_EVENT: dict[wave_fsm.WaveState, EventType] = {
+    wave_fsm.WaveState.VERIFYING: EventType.WAVE_VERIFIED,
+    wave_fsm.WaveState.MERGED: EventType.WAVE_MERGED,
+}
+
 
 class Repository:
-    def __init__(self, sessionmaker: async_sessionmaker[AsyncSession]) -> None:
+    def __init__(
+        self,
+        sessionmaker: async_sessionmaker[AsyncSession],
+        audit: AuditSink | None = None,
+    ) -> None:
         self._sm = sessionmaker
+        self._audit = audit
+
+    async def _emit(
+        self, event_type: EventType, correlation_id: str, payload: dict[str, object]
+    ) -> None:
+        if self._audit is not None:
+            await self._audit.append(
+                make_event(event_type, correlation_id, actor="orchestrator", payload=payload)
+            )
 
     # --- sessões -----------------------------------------------------------
     async def create_session(self, task: str) -> str:
@@ -25,7 +46,9 @@ class Repository:
         async with self._sm() as s:
             s.add(row)
             await s.commit()
-            return row.id
+            sid = row.id
+        await self._emit(EventType.SESSION_CREATED, sid, {"task": task})
+        return sid
 
     async def session_state(self, session_id: str) -> session_fsm.SessionState:
         async with self._sm() as s:
@@ -51,7 +74,9 @@ class Repository:
         async with self._sm() as s:
             s.add(row)
             await s.commit()
-            return row.id
+            wid = row.id
+        await self._emit(EventType.WAVE_STARTED, wid, {"session_id": session_id})
+        return wid
 
     async def set_wave_state(self, wave_id: str, target: wave_fsm.WaveState) -> None:
         async with self._sm() as s:
@@ -63,6 +88,9 @@ class Repository:
                 row.n_corrections += 1
             row.state = target
             await s.commit()
+        event = _WAVE_EVENT.get(target)
+        if event is not None:
+            await self._emit(event, wave_id, {"state": str(target)})
 
     async def all_sessions(self) -> list[str]:
         async with self._sm() as s:

@@ -1,0 +1,41 @@
+{
+  "title": "HDD — Observabilidade",
+  "uid": "hdd-overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": ["hdd", "observability"],
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Convocações de gate (por tipo)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [
+        { "expr": "sum by (gate_type) (rate(hdd_gate_convocations_total[5m]))" }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Aquisições de lease de quota",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "sum by (result) (rate(hdd_quota_acquisitions_total[5m]))" }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "histogram",
+      "title": "Duração da onda (s)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [{ "expr": "hdd_wave_duration_seconds_bucket" }]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Sessões iniciadas",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [{ "expr": "hdd_sessions_started_total" }]
+    }
+  ]
+}

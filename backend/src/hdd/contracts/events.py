@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 
 import uuid_utils
@@ -55,3 +55,19 @@ class EventEnvelope(BaseModel):
 
 
 GENESIS_HASH = "0" * 64
+
+
+def make_event(
+    event_type: EventType,
+    correlation_id: str,
+    actor: str,
+    payload: dict[str, object] | None = None,
+) -> EventEnvelope:
+    """Constrói um evento com timestamp UTC — usado nas transições (RF-04/3.2)."""
+    return EventEnvelope(
+        type=event_type,
+        occurred_at=datetime.now(UTC),
+        correlation_id=correlation_id,
+        actor=actor,
+        payload=payload or {},
+    )
