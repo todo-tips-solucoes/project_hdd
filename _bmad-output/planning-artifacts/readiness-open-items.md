@@ -8,7 +8,7 @@ optimistas viram dívida sem TTL). Consolidado na retro do Sprint 0 (AI-S0-3).
 
 | ID | Action item | Decisão do Project Lead | Trigger |
 |---|---|---|---|
-| **AI-E2-1** | Reconciliar `epics.md` com a realidade registada (paga AI-S0-4: divergências 2.1/2.4/2.6/2.7). | **correct-course pass ANTES do Epic 3** | correr antes da Story 3.1; canon alinhado |
+| **AI-E2-1** | ✅ **RESOLVIDO 2026-05-31** — `epics.md` reconciliado: 2.1 (hdd-worker.ts created→modified), 2.6 (+fsm.ts em files_modified), 2.7 (verdict→enum AO-106). 2.4 já estava exacto. Conflação verdict do Epic 4 registada (não reescrita, E4 não construído). | feito via edição directa | canon alinhado ✅ |
 | **AI-E2-2** | Extrair abstracções partilhadas: `DiagnosticWriter`→port (O-2.5-1, já 2 callers), `RunStateRepository` (O-2.6-1), reconciliar `devOutputSchema` 2.3↔2.7 (O-2.7-1). | **regra dura: extrair ao 3º caller** | aparecer o 3º consumidor de qualquer uma → extrair nessa story |
 | **AI-E2-3** | Spot-check arquitectura×epics×memórias do schema clihelper (O-B5-3) antes de implementar. | **Sim, no create-story da 3.1** | arranque da Story 3.1 |
 
@@ -46,6 +46,7 @@ reescreve o canon a meio** — regista-se aqui e trata-se via **Open Question no
 | **2.4** | `files_modified: src/core/fsm.ts (add gate state)` | feito: +estado `gate_blocked` + evento `GateBlocked` (Q-2.4-1) | MODIFY legítimo (estava na spec) |
 | **2.6** | `files_modified: src/cli/hdd-worker.ts` (só) | também modifica `src/core/fsm.ts` (+evento `OperatorPaused`, Q-2.6-1=a) | divergência **aceite**: pause precisa de `running→paused_for_interrupt`; evento honesto vs reusar interrupt. Sem novo estado (enum DB intacto) |
 | **2.7** | AC2 do epics: `verdict: 'pass'\|'fail-gap'\|'fail-bug'` | arquitectura (AO-106, Step 05/06): `'APPROVED'\|'APPROVED_WITH_WARNINGS'\|'REJECTED'\|'BLOCKED_P1'` | **conflito resolvido p/ arquitectura** (Q-2.7-1=a); enum do epics-AC era esboço superado; AC2 ("rejeita unsure") preservada |
+| **4.1 / 4.5** | `verdict: 'fail-gap'\|'pass'` (gap-detector) + linha 1731 "Reviewer verdict `fail-gap`" | gap-detector verdict (`pass\|fail-gap`) é campo **distinto** do `ReviewOutput.verdict` (AO-106) — a 2.7 reconciliou o ReviewOutput; o Epic 4 conflaciona os dois em ≥1 sítio | **AI-E2-3 estende a E4**: no create-story da 4.1/4.5, separar gap-detector.verdict de ReviewOutput.verdict (não reescrever canon agora — E4 não construído) |
 | **2.x (geral)** | vários `files_created` | verificar caso a caso | **regra: no create-story de cada 2.x, confirmar files_created vs realidade antes de assumir NEW** |
 
 > Princípio (retro Sprint 0): **fidelidade à realidade > spec literal**, com a divergência registada aqui para não apodrecer silenciosamente.

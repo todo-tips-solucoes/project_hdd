@@ -1256,8 +1256,8 @@ So that opero o worker via terminal sem invocar TypeScript directamente.
 **StorySpec:**
 - type: `feature` · epic: E2 · sprint: 1 · pri_feature: F4
 - blocked_by: [1.a.7, 1.a.8, 1.c.7]
-- files_created: `src/cli/hdd-worker.ts`, `src/cli/start.command.ts`, `src/cli/status.command.ts`, `src/cli/logs.command.ts`, `tests/cli/commands.test.ts`
-- files_modified: `package.json` (bin entry), `src/main.ts`
+- files_created: `src/cli/start.command.ts`, `src/cli/status.command.ts`, `src/cli/logs.command.ts`, `tests/cli/commands.test.ts` <!-- AI-E2-1 reconciliação: `src/cli/hdd-worker.ts` movido p/ files_modified (pré-existia desde 1.c.1) -->
+- files_modified: `src/cli/hdd-worker.ts` (extrai subcomandos), `package.json` (bin entry), `src/main.ts`
 - ao_subset: [FR-031, NFR-U4]
 - estimated_tokens: { dev_core: 48K, dev_with_retry: 72K }
 
@@ -1389,7 +1389,7 @@ So that posso parar overnight e continuar manhã sem perder progresso.
 - type: `feature` · epic: E2 · sprint: 1 · pri_feature: F4
 - blocked_by: [1.a.4, 1.a.5, 2.1]
 - files_created: `src/services/worker-lifecycle.service.ts`, `src/cli/pause.command.ts`, `src/cli/resume.command.ts`, `tests/services/lifecycle.test.ts`
-- files_modified: `src/cli/hdd-worker.ts`
+- files_modified: `src/cli/hdd-worker.ts` (stubs→reais), `src/core/fsm.ts` (+evento `OperatorPaused`, `running→paused_for_interrupt`) <!-- AI-E2-1 reconciliação: fsm.ts adicionado (Q-2.6-1=a; pause precisa do evento) -->
 - ao_subset: [FR-031, FR-032 partial, FR-040, NFR-R3]
 - estimated_tokens: { dev_core: 56K, dev_with_retry: 80K }
 
@@ -1432,8 +1432,9 @@ So that parsing de output dos sub-agents é type-safe e BMAD CLI deviations são
 **When** Dev sub-agent retorna JSON com campo extra inesperado
 **Then** Zod `strict` mode rejeita com `err({kind: 'SchemaDrift', field: <field>})` (binary AC)
 
-**Given** schema `ReviewOutput` exige `verdict: 'pass' | 'fail-gap' | 'fail-bug'`
-**When** sub-agent retorna `verdict: 'unsure'`
+<!-- AI-E2-1 reconciliação: `verdict` alinhado com a arquitectura (AO-106, 1036). O `pass|fail-gap|fail-bug` original emprestava o vocabulário do gap-detector (Story 4.1) — campo distinto do `ReviewOutput.verdict`. Decisão Q-2.7-1=(a). -->
+**Given** schema `ReviewOutput` exige `verdict: 'APPROVED' | 'APPROVED_WITH_WARNINGS' | 'REJECTED' | 'BLOCKED_P1'` (AO-106)
+**When** sub-agent retorna `verdict: 'unsure'` (ou `'pass'`, vocabulário do gap-detector)
 **Then** schema rejeita (binary AC)
 
 ---
