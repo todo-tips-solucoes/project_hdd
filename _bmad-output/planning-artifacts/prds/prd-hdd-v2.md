@@ -81,7 +81,7 @@ Desenvolvimento manual em GitHub, sem rastreabilidade estruturada de decisões n
 ## 5. Requisitos Funcionais
 
 - **RF-01 Orquestrador de agentes** — fluxo spec-driven baseado em BMad: redigir requisitos, decompor tarefas, gerar código, executar testes, revisar. Escolhe modelos/ferramentas dinamicamente por tarefa (*tool routing*).
-- **RF-02 Tool routing (modelos Claude)** — escolha em runtime do modelo Claude conforme complexidade (Haiku p/ tarefas simples, Sonnet/Opus p/ complexas). **Sem troca de provider.** No driver `subscription` (MVP) o roteamento opera dentro do que o Claude Code expõe (seleção de modelo por sessão); no driver `api` (escala) o roteamento é por chamada. A política de seleção é a mesma em ambos.
+- **RF-02 Tool routing (modelos Claude)** — escolha em runtime do modelo Claude conforme complexidade (Haiku p/ tarefas simples, Sonnet/Opus p/ complexas). **Sem troca de provider.** No driver `subscription` (MVP) o roteamento é **best-effort** via `--model` quando o Claude Code o honrar, com **fallback determinístico para "modelo único da conta"** (scheduler vira no-op de modelo) — a viabilidade real é validada na PoC do Sprint 0. No driver `api` (escala) o roteamento é por chamada. A política de seleção é a mesma em ambos.
 - **RF-03 Autonomia por padrão + verificação automática** — os agentes operam com **autonomia total** por padrão. A verificação primária é **automática**: cada saída é validada por outro agente verificador e/ou por testes, linters e scanners de segurança antes de ser aceita. **Não há gate humano de finalização** — o humano só é convocado nos gates críticos do RF-03b. Tudo o que não estiver nessa lista (gerar código, escrever/rodar testes, commits locais, abrir PR como rascunho, loops de correção, refactor) é executado sem aprovação humana.
 - **RF-03b Gates de decisão humana (lista fechada)** — o agente **suspende e convoca o humano** (assíncrono, via WhatsApp/Painel) **apenas** quando atinge um destes gates:
   1. **Merge em branch protegida / deploy em produção** — ação irreversível no repo/ambiente principal.
@@ -92,13 +92,17 @@ Desenvolvimento manual em GitHub, sem rastreabilidade estruturada de decisões n
   6. **Escalada por falha** — após **N loops de correção** sem sucesso (N configurável) ou conflito irresolúvel; o agente reconhece o próprio limite em vez de insistir.
 
   A lista é **fechada e versionada** (governança no nível de ferramentas, RNF 6.1): adicionar/remover gate é mudança explícita de configuração, auditada. Convocações de gate têm **timeout configurável** — expirado, a ação fica pendente (nunca auto-aprovada para itens 1–4).
+
+  **Enforcement determinístico (não por juízo do LLM):** os gates 1–4 (ações com efeito externo destrutivo) são impostos por um **capability broker** no Control Plane que classifica a ação **por regra** e força a suspensão **antes** do efeito — o agente não decide se "isto é um gate". O worker não tem shell livre: efeitos privilegiados são capabilities mediadas. Redes de segurança independentes: FS read-only fora do workspace e branch protection no GitHub.
+
+  **Canal de aprovação:** a **decisão de gate ocorre no Painel autenticado (GitHub OAuth)**; o WhatsApp apenas **notifica** (deep link) — o segredo de aprovação não trafega pelo trust boundary n8n.
 - **RF-04 Registro de decisões e auditoria** — todas as decisões, chamadas de ferramenta, falhas e tempos gravados no banco; painel exibe ondas, decisões e justificativas.
 - **RF-05 Memória de contexto** — mecanismo de memória (estilo `knowledge.db`) injeta contexto relevante nas interações da IA.
 - **RF-06 CLI** — iniciar projetos/features, recuperar estados, abrir sessão do orquestrador, gerir logs, atualizar modelos/ferramentas.
 - **RF-07 Painel Web** — observar execução em tempo real, pausar/retomar, responder clarificações; exibir ondas, decisões, modelo, custo estimado e métricas.
-- **RF-08 Canal WhatsApp** — enviar resumos narrativos e perguntas de clarificação ao operador; receber aprovações/respostas. Drop-at-ingress com schema Zod-equivalente (validação mínima) no inbound; n8n é a fronteira de confiança upstream.
+- **RF-08 Canal WhatsApp** — enviar resumos narrativos e **notificações de gate (com deep link para o Painel)** ao operador; receber respostas/clarificações de baixo risco. **A aprovação de gates de alto impacto NÃO é feita no WhatsApp** (ocorre no Painel autenticado, RF-03b). Drop-at-ingress com schema mínimo (Pydantic) + HMAC + idempotency key no inbound; n8n é a fronteira de confiança upstream (conteúdo tratado como não-confiável).
 - **RF-09 Integração GitHub/CI** — criar branches, abrir PRs, executar pipelines, merge mediante aprovação; tokens de privilégio mínimo, respeitar políticas de branch.
-- **RF-10 Módulos de extensão** — suportar instalação de módulos BMad comunitários/proprietários (documentação, scaffolding, geração de testes).
+- **RF-10 Módulos de extensão (porta no MVP; mecanismo pós-MVP)** — o MVP entrega apenas a **interface** (`contracts/ports.py`) que permitirá módulos BMad comunitários/proprietários. O **registry de módulos + o gate de avaliação de risco pré-implantação** (exigido pela RNF 6.1 para cada novo módulo) são entregues **pós-MVP** — instalar módulos arbitrários sem esse gate viola a própria política de segurança.
 - **RF-11 Execução autônoma com controle de sessão** — o orquestrador conduz o pipeline (análise→spec→planejamento→execução→revisão) de ponta a ponta **sem intervenção contínua**, gerindo o ciclo de vida das sessões Claude: criar/abrir, persistir `session_id`, **retomar (`--resume`)** após pausa/falha/limite, fazer checkpoint de progresso, e respeitar os **limites de uso da conta de assinatura** (janela/rate). Pausas por limite de janela devem suspender e retomar automaticamente, não abortar. As pausas de **aprovação humana** (RF-03) ocorrem de forma assíncrona (WhatsApp/Painel) sem bloquear a sessão indefinidamente.
 - **RF-12 Abstração de provider (conta ↔ API)** — o acesso ao LLM passa por uma camada única com dois *drivers* intercambiáveis por configuração: **`subscription`** (Claude Code headless `claude -p`, padrão do MVP) e **`api`** (API da Claude, fase de escala). Nenhum código de domínio referencia diretamente o mecanismo de invocação; trocar de driver é mudar config, não arquitetura.
 
@@ -108,7 +112,7 @@ Desenvolvimento manual em GitHub, sem rastreabilidade estruturada de decisões n
 
 ### 6.1 Segurança
 - Avaliação de risco pré-implantação de cada novo agente/módulo (mapear sistemas, APIs, permissões).
-- Privilégio mínimo + credenciais separadas por agente.
+- Privilégio mínimo + credenciais separadas por agente. **Coerência:** no driver `subscription` (MVP) todos os agentes compartilham UMA conta Claude — "cada agente como principal" é **aspiracional até o driver `api`**; no MVP a separação é real no **nível de ferramentas e de SO** (GitHub tokens escopados, roles de DB, isolamento de papéis: ingestão de conteúdo não-confiável separada do papel com token de escrita, em containers/uids distintos).
 - Arquitetura Zero-Trust (autenticação/autorização por ação; gateways no nível de infraestrutura).
 - Sandbox para agentes/módulos recém-implantados até avaliação de comportamento.
 - Validação de entrada e criptografia em trânsito e repouso.
@@ -121,7 +125,7 @@ Desenvolvimento manual em GitHub, sem rastreabilidade estruturada de decisões n
 ### 6.2 Conformidade LGPD/GDPR
 - Coleta mínima; anonimização/pseudonimização quando possível.
 - Consentimento e transparência; revogação para dados de usuários finais.
-- Direitos do titular: acesso, correção, exclusão.
+- Direitos do titular: acesso, correção, exclusão. **Mecanismo:** como o `audit` é imutável (append-only/hash-chain), a "exclusão" de dados pessoais usa **crypto-shredding** (descarte da chave `pgcrypto`); PII nunca entra no audit em claro (só referência pseudonimizada); política específica para embeddings em `memory`.
 - Retenção e descarte seguro de logs/dados sensíveis.
 - Transferência internacional: avaliar cláusulas se VPS/Claude API estiverem fora do Brasil/UE.
 
