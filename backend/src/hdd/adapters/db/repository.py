@@ -103,3 +103,13 @@ class Repository:
                 select(SessionRow.id, SessionRow.state, SessionRow.task)
             )
             return [(r[0], r[1], r[2]) for r in result.all()]
+
+    async def list_waves(self) -> list[tuple[str, str, str, int]]:
+        """(id, session_id, state, n_corrections) — snapshot para o painel (4.2)."""
+        async with self._sm() as s:
+            result = await s.execute(
+                select(
+                    WaveRow.id, WaveRow.session_id, WaveRow.state, WaveRow.n_corrections
+                ).order_by(WaveRow.created_at)
+            )
+            return [(r[0], r[1], r[2], r[3]) for r in result.all()]

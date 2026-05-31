@@ -23,6 +23,37 @@ class Settings(BaseSettings):
     model: str | None = None
     log_level: str = "INFO"
 
+    # --- Epic 4: Painel Web (RF-07) ---------------------------------------
+    # OAuth GitHub: aprovação de gates acontece NO painel autenticado.
+    github_client_id: str = ""
+    github_client_secret: str = ""
+    # Allowlist de logins GitHub autorizados (CSV). Vazio = nega tudo (fail-closed).
+    github_allowlist: str = ""
+    # Segredo de assinatura do cookie de sessão (httpOnly). Trocar em produção.
+    session_secret: str = "dev-insecure-session-secret-change-me"
+    # URL base do painel — usada nos deep links de gate (RF-08, Story 4.5).
+    panel_base_url: str = "http://localhost:3000"
+    # Origens permitidas no CORS (CSV) — o painel Next.js em dev.
+    cors_origins: str = "http://localhost:3000"
+
+    # --- Epic 4: Canal WhatsApp (RF-08) -----------------------------------
+    # clihelper (camada outbound proprietária sobre a Meta Cloud API).
+    clihelper_base_url: str = ""
+    clihelper_token: str = ""
+    # Leaky-bucket do notifier: intervalo mínimo entre envios (≤1 req/s).
+    notifier_min_interval_s: float = 1.0
+    # Webhook inbound (n8n) — segredo HMAC (X-Hub-Signature-256).
+    webhook_hmac_secret: str = ""
+
+    def allowlist(self) -> frozenset[str]:
+        """Logins GitHub autorizados, normalizados (lowercase, sem vazios)."""
+        return frozenset(
+            x.strip().lower() for x in self.github_allowlist.split(",") if x.strip()
+        )
+
+    def cors_list(self) -> list[str]:
+        return [x.strip() for x in self.cors_origins.split(",") if x.strip()]
+
 
 @functools.lru_cache
 def get_settings() -> Settings:
