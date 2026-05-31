@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# Cancela runs supersedidos do mesmo ref (PR re-pushado) para poupar quota de CI.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     name: Lint + Types + Unit
@@ -57,3 +62,71 @@ jobs:
         run: uv run alembic upgrade head
       - name: pytest (integração, exceto PoC)
         run: uv run pytest -m integration --ignore=tests/test_poc.py
+
+  openapi-drift:
+    name: OpenAPI sem drift
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: regenera o contrato a partir do código
+        run: uv run python scripts/export_openapi.py openapi.json
+      - name: contrato versionado == gerado (sem drift)
+        run: |
+          if ! git diff --exit-code openapi.json; then
+            echo "::error::backend/openapi.json está desatualizado." \
+                 "Rode 'uv run python scripts/export_openapi.py openapi.json' e commite."
+            exit 1
+          fi
+
+  frontend:
+    name: Frontend (lint + typegen-drift + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      # O contrato OpenAPI versionado é a fonte; o build não fala com a API real.
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: lint
+        run: npm run lint
+      - name: typegen sem drift (tipos TS == OpenAPI versionado)
+        run: |
+          npm run typegen
+          if ! git diff --exit-code src/lib/api-types.ts; then
+            echo "::error::frontend/src/lib/api-types.ts está desatualizado." \
+                 "Rode 'npm run typegen' e commite."
+            exit 1
+          fi
+      - name: build (next, output standalone)
+        run: npm run build
+
+  deps:
+    name: Scan de dependências
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: pip-audit (deps de produção do backend)
+        working-directory: backend
+        run: |
+          uv export --no-emit-project --no-dev --format requirements-txt > requirements-audit.txt
+          uvx pip-audit --strict --requirement requirements-audit.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: npm audit (frontend, falha em high/critical)
+        working-directory: frontend
+        run: npm audit --audit-level=high
