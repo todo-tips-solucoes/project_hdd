@@ -7,109 +7,53 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
+  quality:
+    name: Lint + Types + Unit
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: ruff
+        run: uv run ruff check .
+      - name: mypy --strict
+        run: uv run mypy
+      - name: import-linter (boundaries hexagonais)
+        run: uv run lint-imports
+      - name: pytest (unit)
+        run: uv run pytest
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      # Story 1.b.4 (AR-015/AO-47) — pre-pull da sandbox image (best-effort;
-      # testes unit são mock-only e não dependem de docker presente).
-      - name: Pre-pull sandbox image
-        run: bash scripts/prepull-sandbox-image.sh || echo "docker indisponível — skip (testes são mock-only)"
-
-      - name: Lint
-        run: bun run lint
-
-      - name: Type-check
-        run: bun run type-check
-
-      - name: Test
-        run: bun test
-
-      # Story 1.c.4 (AR-017) — gate de segurança explícito (subset rápido).
-      - name: Security suite
-        run: bun run test:security
-
-      # Story 1.c.4 (AR-017/NFR-P1) — binário standalone reproduzível. O smoke
-      # `--help` prova que o binário compilado arranca sem Bun externo. dist/ é
-      # gitignored (artifact, não fonte). Entry = src/cli/hdd-worker.ts (Q-C4-2).
-      - name: Build (compile standalone)
-        run: |
-          bun build --compile src/cli/hdd-worker.ts --outfile dist/hdd-worker
-          ./dist/hdd-worker --help
-
-      # Story 1.b.3 (AO-160/166) — gate de redaction de secrets
-      - name: Verify redaction (no secret survives)
-        run: bun run scripts/verify-redaction.ts
-
-      # Retro Sprint 0 (AI-S0-2) — gate de completude dos runbooks must-have:
-      # impede que um runbook degrade abaixo das 5 secções (anti soft-convention-rot).
-      - name: Runbook completeness (8 must-have × 5 secções)
-        run: bash scripts/runbook-completeness.sh
-
-  secret-scan:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      # Story 1.b.3 (AO-160/166, Pentest secret-scan) — truffleHog no repo + logs
-      - name: TruffleHog secret scan
-        uses: trufflesecurity/trufflehog@main
-        with:
-          extra_args: --results=verified,unknown
-
-  # Story 1.b.5 (AR-076) — suite de pentest PT-1..PT-8 + report
-  security-suite:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Pentest suite PT-1..PT-8 + report
-        run: bun run scripts/pentest-report.ts
-
-      - name: Upload pentest report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pentest-report
-          path: _bmad-output/security/
-          if-no-files-found: ignore
-
-  # Retro Epic 1.b — camada de integração REAL (docker + fs/audit), não mockada.
-  # ubuntu-latest tem docker; constrói a image e corre os testes ao vivo.
   integration:
+    name: Integração (Postgres + pgvector)
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: hdd
+          POSTGRES_PASSWORD: hdd_dev
+          POSTGRES_DB: hdd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hdd -d hdd"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      # A PoC (tests/test_poc.py) invoca `claude -p` (auth + quota) e fica fora do CI.
+      HDD_PG_DSN: postgresql://hdd:hdd_dev@localhost:5432/hdd
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: 1.3.14
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build sandbox image (real)
-        run: bash scripts/prepull-sandbox-image.sh
-
-      - name: Integration tests (docker + fs/audit reais)
-        run: bun run test:integration
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - name: migrations
+        run: uv run alembic upgrade head
+      - name: pytest (integração, exceto PoC)
+        run: uv run pytest -m integration --ignore=tests/test_poc.py
