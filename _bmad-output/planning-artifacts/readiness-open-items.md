@@ -18,6 +18,7 @@ optimistas viram dívida sem TTL). Consolidado na retro do Sprint 0 (AI-S0-3).
 |---|---|---|---|
 | **O-B5-3 / AO-86** | 2026-05-29 | schema clihelper inbound real ainda não recebido; `webhook-mock=true` mantido. | quando o schema chegar → `bun run check:webhook-schema` + remover o mock (cruza AI-E2-3) |
 | **O-2.5-1 / O-2.6-1 / O-2.7-1** | 2026-05-31 | extracções diferidas: `DiagnosticWriter` port, `RunStateRepository`, reconciliação `devOutputSchema`. | **AI-E2-2** — extrair ao 3º caller |
+| **O-3.1-1** | 2026-05-31 | shape interno de `template[]` no body outbound clihelper é assumção (`{name, parameters:[{key,value}]}`); a arquitectura lista só o campo top-level. | sondar o clihelper outbound real (como O-B5-3 mas outbound) → confirmar/ajustar o schema |
 | **O-C1-1** | 2026-05-29 | `dev` script (`bun --hot src/main.ts`) não serve `/healthz`; divergente de `hdd-worker start`. | **Epic 2 / Story 2.1** (mexe em `main.ts`/`hdd-worker.ts`) — consolidar entries |
 | **O-C2-1** | 2026-05-29 | wire `CLIHELPER_TOKEN` no cliente HTTP clihelper (só está no schema Zod). | Epic 3 (outbound clihelper) |
 | **O-C4-2** | 2026-05-30 | `license-checker` no `release.yml` não validado com node_modules do bun. | 1º run do `release.yml` (push de tag `v*`) → ajustar se falhar |

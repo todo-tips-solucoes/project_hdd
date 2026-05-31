@@ -39,7 +39,7 @@
 
 generated: 2026-05-22
 last_updated: 2026-05-30
-last_updated_note: "M1 Sprint 1 — EPIC 2 FECHADO 7/7 + retro done; 351 tests pass; AI-E2-1 correct-course epics.md ANTES do Epic 3"
+last_updated_note: "M1 Sprint 1 — Epic 3 1/6; Story 3.1 (clihelper outbound) DONE; 361 tests pass"
 project: projeto_hdd
 project_key: NOKEY
 tracking_system: file-system
@@ -92,8 +92,8 @@ development_status:
   epic-2-retrospective: done
 
   # ===== Epic 3: Canal WhatsApp (clihelper) + Fallback E-mail =====
-  epic-3: backlog
-  3-1-outboundnotifyport-clihelper-adapter: backlog
+  epic-3: in-progress
+  3-1-outboundnotifyport-clihelper-adapter: done
   3-2-leaky-bucket-1-req-s-retry-circuit-breaker: backlog
   3-3-6-templates-utility-design-register-tracking: backlog
   3-4-inboundcommandport-hono-callback-quick-reply-parsing: backlog
