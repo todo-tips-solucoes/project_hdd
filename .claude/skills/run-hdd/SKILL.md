@@ -8,6 +8,15 @@ description: Sobe e dirige o painel HDD (backend FastAPI + frontend Next.js + Po
 Receita verificada (2026-06-01) para subir a stack local e **dirigir** o app — não
 só lançar. Foi extraída da verificação da Story 6.10 (formulário "Iniciar feature").
 
+> ⚠️ **PRODUÇÃO RODA NESTA MESMA MÁQUINA** (containers `projeto_hdd-*` via
+> `compose.prod.yaml`). O `compose.yaml` de dev e o de produção compartilham o nome
+> de projeto Compose padrão (`projeto_hdd`, do diretório). Rodar `docker compose up`
+> **sem `-p`** recria o Postgres de produção na rede de dev e derruba a API/worker
+> (`failed to resolve host 'postgres'` → 500 em todo o painel). **Sempre** use o
+> projeto isolado **`-p hdd_dev`** nos comandos abaixo. Nunca rode `docker compose`
+> de dev sem `-p hdd_dev`, e nunca toque em containers/volumes `projeto_hdd-*` /
+> `projeto_hdd_hdd_pgdata` (esses são de produção).
+
 A stack tem três peças: **Postgres** (compose), **backend FastAPI** (`uvicorn`) e
 **frontend Next.js** (`next dev`). O painel fica atrás de **GitHub OAuth**; em dev
 contornamos forjando o cookie de sessão (o `session_secret` de dev é conhecido e o
@@ -25,12 +34,16 @@ Defina `WORK=/tmp/hdd-run` (ou outro dir de trabalho) e `SKILL=<caminho desta pa
 
 ```bash
 cd <repo>                       # /var/lib/projeto_hdd
-docker compose up -d postgres
+docker compose -p hdd_dev up -d postgres     # -p hdd_dev → container hdd_dev-postgres-1, isolado da prod
 # aguarda healthy:
-for i in $(seq 1 30); do [ "$(docker inspect -f '{{.State.Health.Status}}' projeto_hdd-postgres-1)" = healthy ] && break; sleep 2; done
+for i in $(seq 1 30); do [ "$(docker inspect -f '{{.State.Health.Status}}' hdd_dev-postgres-1)" = healthy ] && break; sleep 2; done
 cd backend && uv sync --quiet
-uv run alembic upgrade head     # idempotente; o volume pgdata persiste entre runs
+uv run alembic upgrade head     # idempotente; o volume hdd_dev_pgdata persiste entre runs
 ```
+
+O `-p hdd_dev` cria recursos próprios (`hdd_dev-postgres-1`, rede `hdd_dev_default`,
+volume `hdd_dev_pgdata`) totalmente separados dos de produção (`projeto_hdd-*`). A
+porta publicada continua `5433`, então o DSN dev (`localhost:5433`) não muda.
 
 As tabelas de domínio vivem em schemas dedicados (`app`, `audit`, `lgpd`, `memory`),
 não em `public` — `\dt` em `public` só mostra checkpoints do LangGraph; não se assuste.
@@ -79,8 +92,12 @@ e captura a mensagem de sucesso. **Olhe os screenshots** (`01-dashboard.png`,
 
 ```bash
 kill <pid do uvicorn> <pid do next dev>     # pkill -f se autotermina; prefira kill por PID
-docker compose stop postgres                # dados de smoke ficam no volume pgdata (dev)
+docker compose -p hdd_dev down -v           # derruba SÓ o ambiente dev isolado (container + volume)
 ```
+
+`down -v` aqui é seguro **porque** o projeto é `hdd_dev` — atinge apenas
+`hdd_dev_pgdata`, nunca o volume de produção `projeto_hdd_hdd_pgdata`. Sem `-p hdd_dev`,
+`down -v` apagaria o banco de PRODUÇÃO: jamais omita o `-p`.
 
 ## Gotchas (custaram tempo — não repita)
 
@@ -96,6 +113,12 @@ docker compose stop postgres                # dados de smoke ficam no volume pgd
   (`document.cookie` não serve, é httpOnly). `req()` no frontend usa `credentials:"include"`.
 - **Migrations idempotentes**: se `alembic current` já está em head e o volume persistiu, o
   `upgrade` não recria nada — é esperado.
+- **Colisão dev/prod no Compose** (incidente real, 2026-06-01): `docker compose up -d postgres`
+  sem `-p` usa o projeto `projeto_hdd` (nome do diretório) — o MESMO da produção que roda
+  nesta máquina. Recriou o Postgres de prod na rede de dev → API/worker com
+  `failed to resolve host 'postgres'`, 500 no painel inteiro e worker em crash loop.
+  Correção foi `docker compose -f compose.prod.yaml --env-file deploy.env up -d postgres`.
+  Por isso TODO comando compose de dev leva `-p hdd_dev`.
 
 Se algum passo aqui falhar por mecânica não relacionada à mudança que você verifica,
 atualize esta skill em vez de redescobrir.
