@@ -15,7 +15,11 @@ from collections.abc import AsyncIterator
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-from hdd.adapters.llm.subscription import ClaudeSubscriptionProvider
+from hdd.adapters.llm.subscription import (
+    DEFAULT_DISALLOWED,
+    WORKSPACE_DISALLOWED,
+    ClaudeSubscriptionProvider,
+)
 from hdd.adapters.orchestrator.wave import Verifier, WaveOrchestrator
 from hdd.config.settings import Settings
 
@@ -28,9 +32,18 @@ def _always_ok(_workspace: str) -> bool:
 
 @contextlib.asynccontextmanager
 async def open_orchestrator(
-    settings: Settings, verify: Verifier = _always_ok
+    settings: Settings,
+    verify: Verifier = _always_ok,
+    *,
+    workspace: str = "",
+    allow_write: bool = False,
 ) -> AsyncIterator[WaveOrchestrator]:
-    provider = ClaudeSubscriptionProvider(model=settings.model)
+    # Story 6.6: com workspace, o `claude` roda com cwd no clone efêmero e escrita
+    # liberada (contida ao dir); sem workspace, mantém o bloqueio total (pré-6.6).
+    disallowed = WORKSPACE_DISALLOWED if allow_write else DEFAULT_DISALLOWED
+    provider = ClaudeSubscriptionProvider(
+        model=settings.model, cwd=workspace or None, disallowed_tools=disallowed
+    )
     async with AsyncPostgresSaver.from_conn_string(settings.pg_dsn) as checkpointer:
         await checkpointer.setup()
         yield WaveOrchestrator(provider, verify=verify, checkpointer=checkpointer)

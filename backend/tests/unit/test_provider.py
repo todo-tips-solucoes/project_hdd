@@ -18,6 +18,7 @@ class _FakeProc:
 def _patch(monkeypatch, proc, capture: dict):
     def fake_run(cmd, **kw):
         capture["cmd"] = cmd
+        capture["cwd"] = kw.get("cwd")
         return proc
 
     monkeypatch.setattr(sub.subprocess, "run", fake_run)
@@ -33,6 +34,25 @@ def test_cmd_tem_flags_obrigatorias(monkeypatch):
     assert "--disallowedTools" in cmd  # mitigação da descoberta da PoC
     assert "Write" in cmd
     assert res.text == "FEITO" and res.session_id == "s1"
+
+
+def test_modo_workspace_passa_cwd_e_libera_escrita(monkeypatch):
+    cap: dict = {}
+    _patch(monkeypatch, _FakeProc(0, '{"result":"feito"}'), cap)
+    ClaudeSubscriptionProvider(
+        cwd="/ws", disallowed_tools=sub.WORKSPACE_DISALLOWED
+    ).invoke("implemente")
+    assert cap["cwd"] == "/ws"  # claude roda no clone efêmero (Story 6.6)
+    assert "Bash" in cap["cmd"] and "WebFetch" in cap["cmd"]  # ainda bloqueados
+    assert "Write" not in cap["cmd"] and "Edit" not in cap["cmd"]  # liberados
+
+
+def test_modo_padrao_sem_cwd_bloqueia_escrita(monkeypatch):
+    cap: dict = {}
+    _patch(monkeypatch, _FakeProc(0, '{"result":"ok"}'), cap)
+    ClaudeSubscriptionProvider().invoke("planeje")
+    assert cap["cwd"] is None
+    assert "Write" in cap["cmd"] and "Bash" in cap["cmd"]  # bloqueio total (pré-6.6)
 
 
 def test_exit_zero_retorna_result(monkeypatch):

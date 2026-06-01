@@ -17,7 +17,12 @@ from hdd.contracts.dtos import LlmResult
 from hdd.domain.errors import QuotaExhausted, TransientError
 
 QUOTA_MARKERS = ("usage limit", "rate limit", "quota", "limit reached", "overloaded")
+# Padrão (plan/verify, sem workspace): bloqueia TODA escrita/execução (G-1/G-2).
 DEFAULT_DISALLOWED = ("Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "WebFetch")
+# Modo workspace (execute, Story 6.6): libera escrita — contida ao clone efêmero
+# pelo cwd — mas mantém Bash/WebFetch bloqueados (sem exec arbitrário no host nem
+# egress). A execução de testes acontece no sandbox isolado (verify, Story 6.3).
+WORKSPACE_DISALLOWED = ("Bash", "WebFetch")
 
 
 def detect_quota(stdout: str, stderr: str, exit_code: int) -> bool:
@@ -33,10 +38,14 @@ class ClaudeSubscriptionProvider:
         model: str | None = None,
         timeout: int = 120,
         disallowed_tools: tuple[str, ...] = DEFAULT_DISALLOWED,
+        cwd: str | None = None,
     ) -> None:
         self.model = model
         self.timeout = timeout
         self.disallowed_tools = disallowed_tools
+        # cwd do `claude -p`: no modo workspace é o clone efêmero da onda, o que
+        # contém Write/Edit ao diretório descartável (Story 6.6).
+        self.cwd = cwd
 
     def invoke(self, prompt: str) -> LlmResult:
         cmd = ["claude", "-p", prompt, "--output-format", "json"]
@@ -47,7 +56,7 @@ class ClaudeSubscriptionProvider:
 
         try:
             proc = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=self.timeout
+                cmd, capture_output=True, text=True, timeout=self.timeout, cwd=self.cwd
             )
         except subprocess.TimeoutExpired as exc:  # transitório: vale reintentar
             raise TransientError(f"claude -p excedeu timeout ({self.timeout}s)") from exc

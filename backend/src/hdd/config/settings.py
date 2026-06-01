@@ -31,6 +31,13 @@ class Settings(BaseSettings):
     # devem precisar de egress; relaxar só via proxy allowlist se necessário.
     sandbox_network: str = "none"
 
+    # --- Epic 6: provisionamento de workspace da onda (Story 6.6) ----------
+    # Repo-alvo clonado num dir efêmero por onda. Vazio → sem workspace (o
+    # verify defere ao gate e o execute roda sem write, comportamento pré-6.6).
+    repo_url: str = ""
+    # Base para os workspaces efêmeros; vazio → diretório temporário do sistema.
+    workspace_root: str = ""
+
     # --- Epic 4: Painel Web (RF-07) ---------------------------------------
     # OAuth GitHub: aprovação de gates acontece NO painel autenticado.
     github_client_id: str = ""

@@ -27,6 +27,7 @@ from hdd.adapters.db.gate_store import GateStore
 from hdd.adapters.db.repository import Repository
 from hdd.adapters.orchestrator.factory import open_orchestrator
 from hdd.adapters.sandbox.verifier import make_sandbox_verifier
+from hdd.adapters.workspace import WorkspaceProvisioner
 from hdd.config.settings import Settings
 from hdd.domain import wave as wv
 from hdd.domain.capability import GateType
@@ -55,13 +56,25 @@ def build_wave_runner(settings: Settings) -> WaveRunner:
     repo = Repository(sm, AuditSink(sm))
     gate_store = GateStore(sm)
     verify = make_sandbox_verifier(settings)  # Story 6.3: testes reais no sandbox
+    provisioner = WorkspaceProvisioner(  # Story 6.6: clone efêmero por onda
+        settings.repo_url, base_dir=settings.workspace_root or None
+    )
 
     async def run_wave(work_id: str, payload: str) -> None:
         data = json.loads(payload)
         task = str(data["task"])
         thread_id = str(data.get("thread_id", work_id))
-        async with open_orchestrator(settings, verify=verify) as orchestrator:
-            result = await orchestrator.run_wave(thread_id, task)
-        await bridge_after_wave(repo, gate_store, thread_id, result)
+        # Sem repo_url configurado não há provisionamento (workspace=""): o
+        # execute roda sem write e o verify defere ao gate (comportamento pré-6.6).
+        workspace = provisioner.provision(thread_id) if settings.repo_url else ""
+        try:
+            async with open_orchestrator(
+                settings, verify=verify, workspace=workspace, allow_write=bool(workspace)
+            ) as orchestrator:
+                result = await orchestrator.run_wave(thread_id, task, workspace=workspace)
+            await bridge_after_wave(repo, gate_store, thread_id, result)
+        finally:
+            if workspace:
+                provisioner.cleanup(workspace)
 
     return run_wave
