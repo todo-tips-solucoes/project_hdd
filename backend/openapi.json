@@ -158,6 +158,47 @@
         }
       }
     },
+    "/api/features": {
+      "post": {
+        "tags": [
+          "features"
+        ],
+        "summary": "Start Feature",
+        "operationId": "start_feature_api_features_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeatureStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeatureStarted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/waves": {
       "get": {
         "tags": [
@@ -373,6 +414,44 @@
   },
   "components": {
     "schemas": {
+      "FeatureStart": {
+        "properties": {
+          "task": {
+            "type": "string",
+            "title": "Task"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task"
+        ],
+        "title": "FeatureStart",
+        "description": "Pedido para iniciar uma feature (produtor da fila, Story 6.1)."
+      },
+      "FeatureStarted": {
+        "properties": {
+          "session_id": {
+            "type": "string",
+            "title": "Session Id"
+          },
+          "wave_id": {
+            "type": "string",
+            "title": "Wave Id"
+          },
+          "work_id": {
+            "type": "string",
+            "title": "Work Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "session_id",
+          "wave_id",
+          "work_id"
+        ],
+        "title": "FeatureStarted",
+        "description": "Onda criada e enfileirada para o worker.\n\n`wave_id == thread_id` do payload da fila → casa o checkpoint LangGraph com a onda."
+      },
       "GateDecisionOut": {
         "properties": {
           "id": {

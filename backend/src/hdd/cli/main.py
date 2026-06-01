@@ -6,6 +6,7 @@ pendentes e aprová-los/rejeitá-los. A CLI é um entrypoint: compõe os adapter
 from __future__ import annotations
 
 import asyncio
+import json
 
 import typer
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -13,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from hdd.adapters.audit.sink import AuditSink
 from hdd.adapters.db import make_engine, make_sessionmaker
 from hdd.adapters.db.gate_store import GateStore
+from hdd.adapters.db.queue import WorkQueue
 from hdd.adapters.db.repository import Repository
 from hdd.adapters.lgpd import PiiVault
 from hdd.config import get_settings
@@ -28,17 +30,20 @@ def _sessionmaker() -> async_sessionmaker[AsyncSession]:
 
 @app.command()
 def start(task: str) -> None:
-    """Inicia uma feature (cria sessão + onda)."""
+    """Inicia uma feature: cria sessão + onda e enfileira a onda para o worker."""
 
-    async def _go() -> tuple[str, str]:
-        repo = Repository(_sessionmaker())
+    async def _go() -> tuple[str, str, str]:
+        sm = _sessionmaker()
+        repo = Repository(sm, AuditSink(sm))
         sid = await repo.create_session(task)
         await repo.set_session_state(sid, SessionState.RUNNING)
         wid = await repo.create_wave(sid)
-        return sid, wid
+        # thread_id = id da onda → casa o checkpoint LangGraph com a onda (Story 6.1).
+        work_id = await WorkQueue(sm).enqueue(json.dumps({"task": task, "thread_id": wid}))
+        return sid, wid, work_id
 
-    sid, wid = asyncio.run(_go())
-    typer.echo(f"sessão {sid} iniciada · onda {wid}")
+    sid, wid, work_id = asyncio.run(_go())
+    typer.echo(f"sessão {sid} iniciada · onda {wid} · enfileirada {work_id}")
 
 
 @app.command()

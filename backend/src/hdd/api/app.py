@@ -13,7 +13,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from hdd.config import get_settings
 
 from . import auth
-from .routers import events, gates, health, waves, webhooks
+from .routers import events, features, gates, health, waves, webhooks
 
 
 def create_app() -> FastAPI:
@@ -40,6 +40,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(features.router, prefix="/api")
     app.include_router(waves.router, prefix="/api")
     app.include_router(events.router, prefix="/api")
     app.include_router(gates.router, prefix="/api")

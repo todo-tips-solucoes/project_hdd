@@ -34,6 +34,23 @@ class WavesSnapshot(BaseModel):
     waves: list[WaveOut]
 
 
+class FeatureStart(BaseModel):
+    """Pedido para iniciar uma feature (produtor da fila, Story 6.1)."""
+
+    task: str
+
+
+class FeatureStarted(BaseModel):
+    """Onda criada e enfileirada para o worker.
+
+    `wave_id == thread_id` do payload da fila → casa o checkpoint LangGraph com a onda.
+    """
+
+    session_id: str
+    wave_id: str
+    work_id: str
+
+
 class GateOut(BaseModel):
     id: str
     wave_id: str

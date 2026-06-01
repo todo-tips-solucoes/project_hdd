@@ -123,6 +123,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start Feature */
+        post: operations["start_feature_api_features_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/waves": {
         parameters: {
             query?: never;
@@ -246,6 +263,28 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * FeatureStart
+         * @description Pedido para iniciar uma feature (produtor da fila, Story 6.1).
+         */
+        FeatureStart: {
+            /** Task */
+            task: string;
+        };
+        /**
+         * FeatureStarted
+         * @description Onda criada e enfileirada para o worker.
+         *
+         *     `wave_id == thread_id` do payload da fila → casa o checkpoint LangGraph com a onda.
+         */
+        FeatureStarted: {
+            /** Session Id */
+            session_id: string;
+            /** Wave Id */
+            wave_id: string;
+            /** Work Id */
+            work_id: string;
+        };
         /** GateDecisionOut */
         GateDecisionOut: {
             /** Id */
@@ -480,6 +519,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+        };
+    };
+    start_feature_api_features_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeatureStart"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

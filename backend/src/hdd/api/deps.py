@@ -14,6 +14,7 @@ from hdd.adapters.audit.reader import EventReader
 from hdd.adapters.audit.sink import AuditSink
 from hdd.adapters.db import make_engine, make_sessionmaker
 from hdd.adapters.db.gate_store import GateStore
+from hdd.adapters.db.queue import WorkQueue
 from hdd.adapters.db.repository import Repository
 from hdd.adapters.db.webhook_inbox import WebhookInbox
 from hdd.adapters.notifier import ClihelperNotifier
@@ -34,6 +35,10 @@ def get_repository() -> Repository:
 
 def get_gate_store() -> GateStore:
     return GateStore(get_sessionmaker())
+
+
+def get_work_queue() -> WorkQueue:
+    return WorkQueue(get_sessionmaker())
 
 
 def get_event_reader() -> EventReader:
