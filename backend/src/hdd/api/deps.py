@@ -6,6 +6,7 @@ substituem qualquer um via `app.dependency_overrides` sem tocar a app.
 from __future__ import annotations
 
 import functools
+from collections.abc import Awaitable, Callable
 
 from fastapi import HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -18,10 +19,15 @@ from hdd.adapters.db.queue import WorkQueue
 from hdd.adapters.db.repository import Repository
 from hdd.adapters.db.webhook_inbox import WebhookInbox
 from hdd.adapters.notifier import ClihelperNotifier
+from hdd.adapters.orchestrator.factory import open_orchestrator
 from hdd.application.notifications import NotificationService
 from hdd.config import get_settings
 
 from .schemas import User
+
+# Retoma uma onda a partir do checkpoint após a decisão de gate; devolve o
+# `wave_state` final ("merged"|"failed"). Injetável → testes usam um fake (sem quota).
+WaveResumer = Callable[[str, bool], Awaitable[str]]
 
 
 @functools.lru_cache
@@ -39,6 +45,18 @@ def get_gate_store() -> GateStore:
 
 def get_work_queue() -> WorkQueue:
     return WorkQueue(get_sessionmaker())
+
+
+def get_wave_resumer() -> WaveResumer:
+    """Resume pós-gate (Story 6.2). O grafo só roda o nó `gate` → END: SEM `claude -p`."""
+    settings = get_settings()
+
+    async def _resume(thread_id: str, approve: bool) -> str:
+        async with open_orchestrator(settings) as orchestrator:
+            result = await orchestrator.resume(thread_id, approve)
+        return str(result.get("wave_state", ""))
+
+    return _resume
 
 
 def get_event_reader() -> EventReader:

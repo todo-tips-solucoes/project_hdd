@@ -1,0 +1,35 @@
+"""Construção do WaveOrchestrator com checkpoint Postgres durável (Story 6.2).
+
+Fábrica compartilhada entre o worker (rodar a onda até o gate) e a API (retomar
+a onda após a decisão do painel). A durabilidade vem do checkpoint Postgres —
+nunca de `--resume` do claude (invariante provado na PoC).
+
+⚠️ `ClaudeSubscriptionProvider` é construído aqui mas só invoca `claude -p` quando
+um nó do grafo o chama. O `resume` após o gate só roda o nó `gate` → END (sem
+LLM), então retomar uma onda NÃO custa quota.
+"""
+from __future__ import annotations
+
+import contextlib
+from collections.abc import AsyncIterator
+
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+from hdd.adapters.llm.subscription import ClaudeSubscriptionProvider
+from hdd.adapters.orchestrator.wave import Verifier, WaveOrchestrator
+from hdd.config.settings import Settings
+
+
+def _always_ok(_workspace: str) -> bool:
+    # Verificador conservador (6.3 o torna real): encaminha ao gate humano de merge.
+    return True
+
+
+@contextlib.asynccontextmanager
+async def open_orchestrator(
+    settings: Settings, verify: Verifier = _always_ok
+) -> AsyncIterator[WaveOrchestrator]:
+    provider = ClaudeSubscriptionProvider(model=settings.model)
+    async with AsyncPostgresSaver.from_conn_string(settings.pg_dsn) as checkpointer:
+        await checkpointer.setup()
+        yield WaveOrchestrator(provider, verify=verify, checkpointer=checkpointer)

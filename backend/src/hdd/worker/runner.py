@@ -1,46 +1,65 @@
-"""Wiring de produção do WaveRunner (Story 5.2): orquestrador real + checkpoint.
+"""Wiring de produção do WaveRunner (Story 5.2 + 6.2): roda a onda e faz a ponte
+do `interrupt()` do LangGraph para o estado observável (app.waves + app.gates).
 
 Constrói o WaveOrchestrator com o driver `claude -p` (subscription) e o
-checkpointer durável (AsyncPostgresSaver) — mesmo padrão provado na PoC
-(hdd_poc/engine.py): a durabilidade vem do checkpoint Postgres, nunca de
-`--resume` do claude.
+checkpointer durável (AsyncPostgresSaver) via `open_orchestrator` — mesmo padrão
+provado na PoC: a durabilidade vem do checkpoint Postgres, nunca de `--resume`.
 
-⚠️ Esta função invoca `claude -p` (custa quota) e só roda em deploy real — por
-isso o WorkerLoop recebe o runner injetado e é testado com fakes.
+⚠️ Roda a onda invocando `claude -p` (custa quota) — só em deploy real. Por isso
+o WorkerLoop recebe o runner injetado e é testado com fakes; a PONTE pós-onda
+(`bridge_after_wave`) é pura e testável com DB real, sem quota.
+
+Fluxo (6.2): a onda corre até o gate de merge (`interrupt()` → a graph pausa e
+`run_wave` retorna com `wave_state=awaiting_gate`). A ponte então projeta
+`app.waves.state` e ABRE um gate em `app.gates` para o painel decidir. O resume
+após a decisão acontece na API (routers/gates.py), não aqui.
 
 `payload` é JSON: {"task": "...", "thread_id": "<opcional, default=work_id>"}.
-A verificação automática (rodar testes no sandbox) é um follow-up; por ora um
-verificador conservador encaminha ao gate de merge humano (RF-03b).
 """
 from __future__ import annotations
 
 import json
+from typing import Any
 
-from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-
-from hdd.adapters.llm.subscription import ClaudeSubscriptionProvider
-from hdd.adapters.orchestrator import WaveOrchestrator
+from hdd.adapters.audit.sink import AuditSink
+from hdd.adapters.db import make_engine, make_sessionmaker
+from hdd.adapters.db.gate_store import GateStore
+from hdd.adapters.db.repository import Repository
+from hdd.adapters.orchestrator.factory import open_orchestrator
 from hdd.config.settings import Settings
+from hdd.domain import wave as wv
+from hdd.domain.capability import GateType
 from hdd.worker.loop import WaveRunner
 
 
-def _verify(_workspace: str) -> bool:
-    # Follow-up: rodar a suíte de testes no sandbox. Por ora encaminha ao gate
-    # humano de merge (verificação automática "ok" → AWAITING_GATE).
-    return True
+async def bridge_after_wave(
+    repo: Repository, gate_store: GateStore, thread_id: str, result: dict[str, Any]
+) -> None:
+    """Projeta o resultado da onda (checkpoint = SoT) para o estado observável.
+
+    - Sincroniza `app.waves.state` com o `wave_state` do checkpoint (read-model).
+    - Se a onda pausou no gate de merge, abre o gate (`app.gates`) para o painel.
+    """
+    raw = str(result.get("wave_state", ""))
+    if not raw:
+        return
+    state = wv.WaveState(raw)
+    await repo.sync_wave_state(thread_id, state)
+    if state is wv.WaveState.AWAITING_GATE:
+        await gate_store.open_gate(thread_id, GateType.MERGE_DEPLOY, "aprovar merge?")
 
 
 def build_wave_runner(settings: Settings) -> WaveRunner:
-    provider = ClaudeSubscriptionProvider(model=settings.model)
-    dsn = settings.pg_dsn
+    sm = make_sessionmaker(make_engine(settings.pg_dsn))
+    repo = Repository(sm, AuditSink(sm))
+    gate_store = GateStore(sm)
 
     async def run_wave(work_id: str, payload: str) -> None:
         data = json.loads(payload)
         task = str(data["task"])
         thread_id = str(data.get("thread_id", work_id))
-        async with AsyncPostgresSaver.from_conn_string(dsn) as checkpointer:
-            await checkpointer.setup()
-            orchestrator = WaveOrchestrator(provider, verify=_verify, checkpointer=checkpointer)
-            await orchestrator.run_wave(thread_id, task)
+        async with open_orchestrator(settings) as orchestrator:
+            result = await orchestrator.run_wave(thread_id, task)
+        await bridge_after_wave(repo, gate_store, thread_id, result)
 
     return run_wave

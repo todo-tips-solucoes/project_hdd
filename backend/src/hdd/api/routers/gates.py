@@ -16,15 +16,16 @@ from hdd.adapters.db.gate_store import GateStore
 from hdd.adapters.db.repository import Repository
 from hdd.application.notifications import NotificationService
 from hdd.contracts.events import EventType, make_event
-from hdd.domain.errors import DomainError
 from hdd.domain.gate import GateStatus
 from hdd.domain.wave import WaveState
 
 from ..deps import (
+    WaveResumer,
     get_audit,
     get_gate_store,
     get_notifications,
     get_repository,
+    get_wave_resumer,
     require_user,
 )
 from ..schemas import GateDecisionOut, GateOut, User
@@ -74,6 +75,7 @@ async def _decide(
     audit: AuditSink,
     repo: Repository,
     notifications: NotificationService,
+    resume: WaveResumer,
 ) -> GateDecisionOut:
     detail = await gate_store.detail(gate_id)
     if detail is None:
@@ -82,7 +84,8 @@ async def _decide(
     was_pending = detail.status == GateStatus.PENDING
     new_status = await gate_store.resolve_authenticated(gate_id, approve)
 
-    # Só há efeitos colaterais quando esta requisição de fato decidiu o gate.
+    # Só há efeitos colaterais quando esta requisição de fato decidiu o gate
+    # (idempotência: um 2º POST encontra o gate terminal → was_pending False).
     if was_pending and new_status in (GateStatus.APPROVED, GateStatus.REJECTED):
         evt = EventType.GATE_APPROVED if approve else EventType.GATE_REJECTED
         await audit.append(
@@ -93,10 +96,12 @@ async def _decide(
                 payload={"gate_id": gate_id, "gate_type": detail.gate_type},
             )
         )
-        # Retoma/encerra a onda (best-effort: ignora se a FSM não permite a transição).
-        target = WaveState.MERGED if approve else WaveState.ESCALATED
-        with contextlib.suppress(DomainError):
-            await repo.set_wave_state(detail.wave_id, target)
+        # Retoma a onda a partir do checkpoint LangGraph (SoT) — Story 6.2.
+        # O grafo avança o nó `gate` → END (aprovação=merged, rejeição=failed) e
+        # projetamos o estado final em app.waves (read-model). thread_id == wave_id.
+        final = await resume(detail.wave_id, approve)
+        if final:
+            await repo.sync_wave_state(detail.wave_id, WaveState(final))
         # Notifica o operador (best-effort: falha de canal não invalida a decisão).
         with contextlib.suppress(Exception):
             await notifications.gate_resolved(
@@ -114,8 +119,11 @@ async def approve_gate(
     audit: AuditSink = Depends(get_audit),
     repo: Repository = Depends(get_repository),
     notifications: NotificationService = Depends(get_notifications),
+    resume: WaveResumer = Depends(get_wave_resumer),
 ) -> GateDecisionOut:
-    return await _decide(gate_id, True, user, gate_store, audit, repo, notifications)
+    return await _decide(
+        gate_id, True, user, gate_store, audit, repo, notifications, resume
+    )
 
 
 @router.post("/gates/{gate_id}/reject", response_model=GateDecisionOut)
@@ -126,5 +134,8 @@ async def reject_gate(
     audit: AuditSink = Depends(get_audit),
     repo: Repository = Depends(get_repository),
     notifications: NotificationService = Depends(get_notifications),
+    resume: WaveResumer = Depends(get_wave_resumer),
 ) -> GateDecisionOut:
-    return await _decide(gate_id, False, user, gate_store, audit, repo, notifications)
+    return await _decide(
+        gate_id, False, user, gate_store, audit, repo, notifications, resume
+    )

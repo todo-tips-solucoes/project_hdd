@@ -19,6 +19,7 @@ from hdd.api.deps import (
     get_gate_store,
     get_notifications,
     get_repository,
+    get_wave_resumer,
     get_webhook_inbox,
     require_user,
 )
@@ -40,7 +41,7 @@ class FakeRepo:
     async def list_waves(self) -> list[tuple[str, str, str, int]]:
         return [("w1", "s1", "AWAITING_GATE", 0)]
 
-    async def set_wave_state(self, wave_id: str, target: object) -> None:
+    async def sync_wave_state(self, wave_id: str, target: object) -> None:
         self.transitions.append((wave_id, str(target)))
 
 
@@ -84,6 +85,11 @@ class FakeInbox:
     async def seen(self, idempotency_key: str, source: str) -> bool:
         self.calls.append((idempotency_key, source))
         return self._already
+
+
+async def _fake_resume(thread_id: str, approve: bool) -> str:
+    """Stub do resume pós-gate: o checkpoint avança para merged/failed (sem quota)."""
+    return "merged" if approve else "failed"
 
 
 def _pending_detail() -> GateDetail:
@@ -159,12 +165,14 @@ def test_decisao_de_gate_emite_audit_e_transiciona(
     app.dependency_overrides[get_notifications] = lambda: NotificationService(
         notifier, "http://painel"
     )
+    app.dependency_overrides[get_wave_resumer] = lambda: _fake_resume
     with TestClient(app) as c:
         resp = c.post(f"/api/gates/g1/{verb}").json()
 
     assert resp["status"] == str(status_esperado)
     assert len(audit.events) == 1  # decisão registrada na trilha
-    assert len(repo.transitions) == 1  # onda retomada/encerrada
+    # onda retomada do checkpoint e projetada: approve→merged, reject→failed (6.2)
+    assert repo.transitions == [("w1", "merged" if approve else "failed")]
     assert notifier.messages  # operador notificado
     assert "alice" in notifier.messages[0]
 
@@ -190,11 +198,12 @@ def test_decisao_idempotente_nao_reemite() -> None:
     app.dependency_overrides[get_notifications] = lambda: NotificationService(
         FakeNotifier(), "http://painel"
     )
+    app.dependency_overrides[get_wave_resumer] = lambda: _fake_resume
     with TestClient(app) as c:
         resp = c.post("/api/gates/g1/approve").json()
     assert resp["status"] == "approved"
     assert audit.events == []
-    assert repo.transitions == []
+    assert repo.transitions == []  # gate terminal → nada retomado/reemitido
 
 
 def test_gate_inexistente_404() -> None:

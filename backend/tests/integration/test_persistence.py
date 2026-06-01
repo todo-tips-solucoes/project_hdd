@@ -11,7 +11,6 @@ from hdd.adapters.db.repository import Repository
 from hdd.config import get_settings
 from hdd.domain.errors import DomainError
 from hdd.domain.session import SessionState
-from hdd.domain.wave import WaveState
 
 pytestmark = pytest.mark.integration
 
@@ -34,14 +33,3 @@ async def test_transicao_ilegal_e_rejeitada_na_persistencia():
     sid = await repo.create_session("x")
     with pytest.raises(DomainError):
         await repo.set_session_state(sid, SessionState.DONE)  # CREATED↛DONE
-
-
-async def test_onda_conta_correcoes():
-    repo = _repo()
-    sid = await repo.create_session("y")
-    await repo.set_session_state(sid, SessionState.RUNNING)
-    wid = await repo.create_wave(sid)
-    await repo.set_wave_state(wid, WaveState.EXECUTING)
-    await repo.set_wave_state(wid, WaveState.VERIFYING)
-    await repo.set_wave_state(wid, WaveState.CORRECTING)  # n_corrections += 1
-    await repo.set_wave_state(wid, WaveState.EXECUTING)

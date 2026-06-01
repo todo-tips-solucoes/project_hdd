@@ -16,12 +16,6 @@ from hdd.domain.errors import DomainError
 
 from .models import SessionRow, WaveRow
 
-# Mapa transição-da-onda → evento de auditoria (catálogo fechado, 3.2).
-_WAVE_EVENT: dict[wave_fsm.WaveState, EventType] = {
-    wave_fsm.WaveState.VERIFYING: EventType.WAVE_VERIFIED,
-    wave_fsm.WaveState.MERGED: EventType.WAVE_MERGED,
-}
-
 
 class Repository:
     def __init__(
@@ -78,19 +72,22 @@ class Repository:
         await self._emit(EventType.WAVE_STARTED, wid, {"session_id": session_id})
         return wid
 
-    async def set_wave_state(self, wave_id: str, target: wave_fsm.WaveState) -> None:
+    async def sync_wave_state(self, wave_id: str, target: wave_fsm.WaveState) -> None:
+        """Projeta o estado da onda a partir do SoT (checkpoint LangGraph) — Story 6.2.
+
+        O checkpoint é a FSM durável: ao avançar o grafo, o orquestrador já validou
+        cada transição (`assert_transition` em `WaveOrchestrator._to`). Aqui apenas
+        ESPELHAMOS o estado resultante para `app.waves` (read-model do painel/CLI),
+        SEM re-assertar a FSM — a projeção pode 'saltar' (PLANNED → AWAITING_GATE,
+        AWAITING_GATE → MERGED) porque os passos intermédios vivem no checkpoint.
+        Auditoria da decisão fica a cargo do call site (GATE_APPROVED/REJECTED).
+        """
         async with self._sm() as s:
             row = await s.get(WaveRow, wave_id)
             if row is None:
                 raise DomainError(f"onda inexistente: {wave_id}")
-            wave_fsm.assert_transition(wave_fsm.WaveState(row.state), target)
-            if target == wave_fsm.WaveState.CORRECTING:
-                row.n_corrections += 1
             row.state = target
             await s.commit()
-        event = _WAVE_EVENT.get(target)
-        if event is not None:
-            await self._emit(event, wave_id, {"state": str(target)})
 
     async def all_sessions(self) -> list[str]:
         async with self._sm() as s:
