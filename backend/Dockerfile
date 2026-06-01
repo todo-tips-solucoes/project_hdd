@@ -34,6 +34,17 @@ WORKDIR /app
 
 # --- api --------------------------------------------------------------------
 FROM runtime-base AS api
+# gh CLI: o resume na API faz `gh pr merge` ao aprovar o gate (Story 6.8/ADR 0003).
+ARG GH_VERSION=2.63.2
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl \
+ && curl -fsSL "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_amd64.tar.gz" \
+      | tar -xz -C /tmp \
+ && mv "/tmp/gh_${GH_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh \
+ && rm -rf "/tmp/gh_${GH_VERSION}_linux_amd64" \
+ && apt-get purge -y curl \
+ && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
 COPY --from=builder --chown=10001:10001 /app /app
 USER 10001:10001
 EXPOSE 8000
@@ -43,12 +54,14 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
 CMD ["sh", "-c", "alembic upgrade head && exec uvicorn hdd.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
 
 # --- worker -----------------------------------------------------------------
-# Precisa do Claude Code CLI (Node) e de git+gh (GitHubVcs abre PR rascunho).
+# Precisa do Claude Code CLI (Node), git+gh (GitHubVcs: PR/merge) e do CLI docker
+# (Story 6.9: o nó `verify` faz `docker run` do sandbox via socket do host).
 FROM node:22-bookworm-slim AS nodejs
 
 FROM runtime-base AS worker
 ARG GH_VERSION=2.63.2
-# Node 22 (copiado da imagem oficial) + git + gh CLI.
+ARG DOCKER_CLI_VERSION=27.3.1
+# Node 22 (copiado da imagem oficial) + git + gh CLI + docker CLI (client only).
 COPY --from=nodejs /usr/local/bin/node /usr/local/bin/node
 COPY --from=nodejs /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
 RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
@@ -58,6 +71,10 @@ RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
       | tar -xz -C /tmp \
  && mv "/tmp/gh_${GH_VERSION}_linux_amd64/bin/gh" /usr/local/bin/gh \
  && rm -rf "/tmp/gh_${GH_VERSION}_linux_amd64" \
+ && curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" \
+      | tar -xz -C /tmp docker/docker \
+ && mv /tmp/docker/docker /usr/local/bin/docker \
+ && rm -rf /tmp/docker \
  && npm install -g @anthropic-ai/claude-code \
  && apt-get purge -y curl \
  && apt-get autoremove -y \
