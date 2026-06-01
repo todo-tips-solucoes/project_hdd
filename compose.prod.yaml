@@ -1,0 +1,97 @@
+# Deploy via `docker compose` (sem Swarm) — usa o Traefik/host existente.
+# Diferenças vs stack.yaml (Swarm): secrets como FICHEIROS (./secrets/), `restart:`
+# em vez de `deploy:`, SEM o serviço caddy (o ingress fica a cargo do Traefik já
+# presente, via labels — adicionar quando houver hostname/OAuth). A APLICAÇÃO é a
+# mesma: lê /run/secrets/hdd_* igual ao Swarm. Zero alteração de código.
+#
+#   docker compose -f compose.prod.yaml up -d postgres api worker
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: hdd
+      POSTGRES_DB: hdd
+      POSTGRES_PASSWORD_FILE: /run/secrets/hdd_postgres_password
+    secrets: [hdd_postgres_password]
+    volumes:
+      - hdd_pgdata:/var/lib/postgresql/data
+    networks: [hdd_backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hdd -d hdd"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    image: ${HDD_IMAGE_API:-hdd-api:latest}
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && exec uvicorn hdd.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
+    environment:
+      HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
+      HDD_REPO_SLUG: ${HDD_REPO_SLUG:-}
+    secrets:
+      - hdd_pg_dsn
+      - hdd_session_secret
+      - hdd_github_client_secret
+      - hdd_clihelper_token
+      - hdd_webhook_hmac_secret
+      - hdd_gh_token          # gh pr merge ao aprovar o gate (entrypoint → GH_TOKEN)
+    # Sem porta exposta (host ocupado) — inspeção via `docker compose exec`.
+    # Ingress real = Traefik (labels), quando houver hostname/OAuth.
+    networks: [hdd_backend]
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: unless-stopped
+
+  worker:
+    image: ${HDD_IMAGE_WORKER:-hdd-worker:latest}
+    environment:
+      HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
+      HDD_MODEL: ${HDD_MODEL:-}
+      HDD_REPO_URL: ${HDD_REPO_URL:-}
+      HDD_REPO_SLUG: ${HDD_REPO_SLUG:-}
+      HDD_VERIFY_COMMAND: ${HDD_VERIFY_COMMAND:-pytest -q}
+      HDD_SANDBOX_IMAGE: ${HDD_SANDBOX_IMAGE:-hdd-sandbox:latest}
+      HDD_SANDBOX_NETWORK: ${HDD_SANDBOX_NETWORK:-none}
+      HDD_WORKSPACE_ROOT: ${HDD_WORKSPACE_ROOT:-/var/lib/hdd-workspaces}
+    secrets:
+      - hdd_pg_dsn
+      - hdd_gh_token            # abre PR (entrypoint → GH_TOKEN)
+      - hdd_claude_oauth_token  # claude -p (entrypoint → CLAUDE_CODE_OAUTH_TOKEN)
+    volumes:
+      # verify faz `docker run` do sandbox no daemon do host (ADR 0004).
+      - /var/run/docker.sock:/var/run/docker.sock
+      # workspace num caminho idêntico host↔worker (o mount do sandbox é do host).
+      - ${HDD_WORKSPACE_ROOT:-/var/lib/hdd-workspaces}:${HDD_WORKSPACE_ROOT:-/var/lib/hdd-workspaces}
+    group_add:
+      - "${HDD_DOCKER_GID:-998}"  # gid do grupo docker no host (acesso ao socket)
+    networks: [hdd_backend]
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: unless-stopped
+
+  # Painel — só útil com ingress/OAuth (Traefik). Não exercitado no smoke do mesh.
+  frontend:
+    image: ${HDD_IMAGE_FRONTEND:-hdd-frontend:latest}
+    networks: [hdd_backend]
+    restart: unless-stopped
+    profiles: [panel]
+
+networks:
+  hdd_backend:
+
+volumes:
+  hdd_pgdata:
+
+secrets:
+  hdd_pg_dsn: {file: ./secrets/hdd_pg_dsn}
+  hdd_session_secret: {file: ./secrets/hdd_session_secret}
+  hdd_github_client_secret: {file: ./secrets/hdd_github_client_secret}
+  hdd_clihelper_token: {file: ./secrets/hdd_clihelper_token}
+  hdd_webhook_hmac_secret: {file: ./secrets/hdd_webhook_hmac_secret}
+  hdd_postgres_password: {file: ./secrets/hdd_postgres_password}
+  hdd_gh_token: {file: ./secrets/hdd_gh_token}
+  hdd_claude_oauth_token: {file: ./secrets/hdd_claude_oauth_token}

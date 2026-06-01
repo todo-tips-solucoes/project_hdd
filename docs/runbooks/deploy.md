@@ -92,6 +92,29 @@ credenciais). Em produção isso exige que o worker fale com o daemon do host:
 > exposição do MVP; aceita para o dogfood single-operator (ADR 0004 lista as
 > mitigações e a evolução: socket-proxy / runtime rootless).
 
+## Alternativa: deploy via `docker compose` (host com ingress próprio)
+
+Se o host **já tem um reverse-proxy** (ex.: Traefik a ocupar 80/443) ou não se
+quer iniciar Swarm, use **`compose.prod.yaml`** — a aplicação é a mesma (lê
+`/run/secrets/hdd_*` igual). Diferenças vs `stack.yaml`: secrets como **ficheiros**
+(`./secrets/`, gitignored), `restart:` em vez de `deploy:`, **sem Caddy** (o ingress
+fica ao Traefik via labels). Validado por um smoke E2E real (2026-06-01).
+
+```bash
+mkdir -p secrets && chmod 700 secrets   # criar os ficheiros hdd_* (ver secrets.md)
+mkdir -p /var/lib/hdd-workspaces && chmod 777 /var/lib/hdd-workspaces  # worker uid 10001 escreve aqui
+docker compose --env-file deploy.env -f compose.prod.yaml up -d postgres api worker
+```
+
+> ⚠️ **Gotchas do compose (descobertos no smoke):**
+> 1. **Perms dos secrets:** o Swarm monta secrets `0444`, mas o compose **preserva
+>    o modo do ficheiro** — se forem `600/root`, o uid 10001 não os lê (boot falha
+>    com *permission denied*). Torne-os legíveis pelo container (`chmod 644`, ou use
+>    a long-syntax com `uid:`/`mode:`).
+> 2. **git auth no contêiner:** ter `GH_TOKEN` no env não basta para `git clone`/
+>    `push` de repos privados — é preciso `gh auth setup-git` (o `docker-entrypoint.sh`
+>    já o faz). Sem isto: *could not read Username for github.com*.
+
 ## Escala e teto de quota
 
 `HDD_WORKER_REPLICAS` escala o worker. O teto global de `claude -p` concorrentes
