@@ -32,6 +32,12 @@ services:
     environment:
       HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
       HDD_REPO_SLUG: ${HDD_REPO_SLUG:-}
+      # Painel + OAuth GitHub (Story 6.4 ingress). Same-origin: api e painel no
+      # mesmo hostname → URLs relativas + cookie de sessão httpOnly.
+      HDD_GITHUB_CLIENT_ID: ${HDD_GITHUB_CLIENT_ID:-}
+      HDD_GITHUB_ALLOWLIST: ${HDD_GITHUB_ALLOWLIST:-}
+      HDD_PANEL_BASE_URL: https://${HDD_DOMAIN}
+      HDD_CORS_ORIGINS: https://${HDD_DOMAIN}
     secrets:
       - hdd_pg_dsn
       - hdd_session_secret
@@ -39,12 +45,25 @@ services:
       - hdd_clihelper_token
       - hdd_webhook_hmac_secret
       - hdd_gh_token          # gh pr merge ao aprovar o gate (entrypoint → GH_TOKEN)
-    # Sem porta exposta (host ocupado) — inspeção via `docker compose exec`.
-    # Ingress real = Traefik (labels), quando houver hostname/OAuth.
-    networks: [hdd_backend]
+    networks: [hdd_backend, hdd_edge]
     depends_on:
       postgres: {condition: service_healthy}
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hdd_edge"
+      # api responde às rotas de backend; o resto do hostname é o painel (frontend).
+      - "traefik.http.routers.hdd-api.rule=Host(`${HDD_DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/webhooks`) || PathPrefix(`/healthz`) || PathPrefix(`/readyz`) || PathPrefix(`/metrics`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`))"
+      - "traefik.http.routers.hdd-api.entrypoints=websecure"
+      - "traefik.http.routers.hdd-api.tls=true"
+      - "traefik.http.routers.hdd-api.tls.certresolver=leresolver"
+      - "traefik.http.routers.hdd-api.priority=100"
+      - "traefik.http.services.hdd-api.loadbalancer.server.port=8000"
+      # http→https
+      - "traefik.http.routers.hdd-api-http.rule=Host(`${HDD_DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/webhooks`) || PathPrefix(`/healthz`) || PathPrefix(`/readyz`) || PathPrefix(`/metrics`))"
+      - "traefik.http.routers.hdd-api-http.entrypoints=web"
+      - "traefik.http.routers.hdd-api-http.middlewares=hdd-https"
+      - "traefik.http.middlewares.hdd-https.redirectscheme.scheme=https"
 
   worker:
     image: ${HDD_IMAGE_WORKER:-hdd-worker:latest}
@@ -73,15 +92,32 @@ services:
       postgres: {condition: service_healthy}
     restart: unless-stopped
 
-  # Painel — só útil com ingress/OAuth (Traefik). Não exercitado no smoke do mesh.
+  # Painel (Next.js standalone) — servido pelo Traefik no hostname; o login OAuth
+  # e as chamadas à api são same-origin (URLs relativas via Traefik).
   frontend:
     image: ${HDD_IMAGE_FRONTEND:-hdd-frontend:latest}
-    networks: [hdd_backend]
+    networks: [hdd_edge]
     restart: unless-stopped
-    profiles: [panel]
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=hdd_edge"
+      # catch-all do hostname (prioridade < api → as rotas de backend vão à api).
+      - "traefik.http.routers.hdd-fe.rule=Host(`${HDD_DOMAIN}`)"
+      - "traefik.http.routers.hdd-fe.entrypoints=websecure"
+      - "traefik.http.routers.hdd-fe.tls=true"
+      - "traefik.http.routers.hdd-fe.tls.certresolver=leresolver"
+      - "traefik.http.routers.hdd-fe.priority=1"
+      - "traefik.http.services.hdd-fe.loadbalancer.server.port=3000"
+      - "traefik.http.routers.hdd-fe-http.rule=Host(`${HDD_DOMAIN}`)"
+      - "traefik.http.routers.hdd-fe-http.entrypoints=web"
+      - "traefik.http.routers.hdd-fe-http.middlewares=hdd-https"
 
 networks:
   hdd_backend:
+  # Rede partilhada com o Traefik (conectar o Traefik a ela após o `up`):
+  #   docker network connect hdd_edge traefik
+  hdd_edge:
+    name: hdd_edge
 
 volumes:
   hdd_pgdata:
