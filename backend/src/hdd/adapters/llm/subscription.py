@@ -39,6 +39,7 @@ class ClaudeSubscriptionProvider:
         timeout: int = 120,
         disallowed_tools: tuple[str, ...] = DEFAULT_DISALLOWED,
         cwd: str | None = None,
+        permission_mode: str | None = None,
     ) -> None:
         self.model = model
         self.timeout = timeout
@@ -46,6 +47,10 @@ class ClaudeSubscriptionProvider:
         # cwd do `claude -p`: no modo workspace é o clone efêmero da onda, o que
         # contém Write/Edit ao diretório descartável (Story 6.6).
         self.cwd = cwd
+        # Em modo headless `-p`, Write/Edit exigem permissão ou NÃO são executadas
+        # (claude só "aguarda aprovação"). `acceptEdits` auto-aceita edições — com
+        # Bash/WebFetch já bloqueados via disallowed_tools. Descoberto no smoke E2E.
+        self.permission_mode = permission_mode
 
     def invoke(self, prompt: str) -> LlmResult:
         cmd = ["claude", "-p", prompt, "--output-format", "json"]
@@ -53,6 +58,8 @@ class ClaudeSubscriptionProvider:
             cmd += ["--model", self.model]
         if self.disallowed_tools:
             cmd += ["--disallowedTools", *self.disallowed_tools]
+        if self.permission_mode:
+            cmd += ["--permission-mode", self.permission_mode]
 
         try:
             proc = subprocess.run(

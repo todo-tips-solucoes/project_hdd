@@ -43,7 +43,11 @@ async def open_orchestrator(
     # liberada (contida ao dir); sem workspace, mantém o bloqueio total (pré-6.6).
     disallowed = WORKSPACE_DISALLOWED if allow_write else DEFAULT_DISALLOWED
     provider = ClaudeSubscriptionProvider(
-        model=settings.model, cwd=workspace or None, disallowed_tools=disallowed
+        model=settings.model,
+        cwd=workspace or None,
+        disallowed_tools=disallowed,
+        # Modo workspace: auto-aceita edições (senão o claude -p não escreve nada).
+        permission_mode="acceptEdits" if allow_write else None,
     )
     # Worker (com workspace): nó `pr` abre o PR a partir do clone (6.7).
     # Resume na API (sem workspace, com repo_slug): nó `gate` mergeia via `gh
