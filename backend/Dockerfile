@@ -31,6 +31,11 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
 RUN groupadd --gid 10001 hdd && useradd --uid 10001 --gid 10001 --create-home hdd
 WORKDIR /app
+# Entrypoint carrega tokens de /run/secrets para o ENV dos CLIs (claude/gh) sem
+# expô-los via `docker inspect` (Story 6.4 hardening). Herdado por api e worker.
+COPY docker-entrypoint.sh /usr/local/bin/hdd-entrypoint.sh
+RUN chmod +x /usr/local/bin/hdd-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/hdd-entrypoint.sh"]
 
 # --- api --------------------------------------------------------------------
 FROM runtime-base AS api

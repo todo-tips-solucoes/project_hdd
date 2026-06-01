@@ -51,13 +51,14 @@ services:
       HDD_CLIHELPER_BASE_URL: ${HDD_CLIHELPER_BASE_URL:-}
       # Story 6.8/ADR 0003: o resume na API faz `gh pr merge` ao aprovar o gate.
       HDD_REPO_SLUG: ${HDD_REPO_SLUG:-}
-      GH_TOKEN: ${HDD_GH_TOKEN:-}
     secrets:
       - hdd_pg_dsn
       - hdd_session_secret
       - hdd_github_client_secret
       - hdd_clihelper_token
       - hdd_webhook_hmac_secret
+      # GH_TOKEN do `gh pr merge` via secret (não env) — o entrypoint o exporta.
+      - hdd_gh_token
     networks:
       - backend
       - edge
@@ -74,10 +75,8 @@ services:
       HDD_LLM_DRIVER: ${HDD_LLM_DRIVER:-subscription}
       HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
       HDD_MODEL: ${HDD_MODEL:-}
-      # Credenciais geridas via deploy.env (decisão do operador).
-      # Claude Code (conta de assinatura) e GitHub (gh CLI abre o PR rascunho).
-      CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
-      GH_TOKEN: ${HDD_GH_TOKEN:-}
+      # Tokens (Claude Code + gh) NÃO vão por env — vêm de Docker secrets e são
+      # exportados pelo entrypoint (Story 6.4 hardening; não vazam em docker inspect).
       # Story 6.9: malha de execução real (workspace por onda + verify no sandbox).
       # Sem HDD_REPO_URL o worker não provisiona workspace (verify defere ao gate).
       HDD_REPO_URL: ${HDD_REPO_URL:-}
@@ -101,6 +100,9 @@ services:
       - "${HDD_DOCKER_GID:-999}"
     secrets:
       - hdd_pg_dsn
+      # Tokens via secret (exportados pelo entrypoint), não env.
+      - hdd_gh_token
+      - hdd_claude_oauth_token
     networks:
       - backend
     depends_on:
@@ -169,4 +171,9 @@ secrets:
   hdd_webhook_hmac_secret:
     external: true
   hdd_postgres_password:
+    external: true
+  # Tokens de runtime (Story 6.4 hardening) — exportados pelo entrypoint.
+  hdd_gh_token:
+    external: true
+  hdd_claude_oauth_token:
     external: true
