@@ -13,6 +13,9 @@ _bmad/custom/config.user.toml
 *.env
 !.env.example
 !.env.*.example
+# Segredos do deploy (compose/Swarm) e deploy.env — nunca versionar.
+/secrets/
+/deploy.env
 
 # Python / uv (HDD v2 — backend). uv.lock fica committable (reproducibilidade);
 # .venv e caches nunca.
