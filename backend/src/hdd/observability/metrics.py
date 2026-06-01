@@ -1,7 +1,7 @@
 """Métricas Prometheus (Story 3.5) — RED + métricas de negócio do HDD."""
 from __future__ import annotations
 
-from prometheus_client import CollectorRegistry, Counter, Histogram, generate_latest
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
 
 REGISTRY = CollectorRegistry()
 
@@ -25,6 +25,21 @@ wave_duration = Histogram(
 sessions_active = Counter(
     "hdd_sessions_started_total",
     "Sessões iniciadas.",
+    registry=REGISTRY,
+)
+wave_failures = Counter(
+    "hdd_wave_failures_total",
+    "Ondas que falharam no worker (exceção → queue.fail).",
+    registry=REGISTRY,
+)
+merge_failures = Counter(
+    "hdd_merge_failures_total",
+    "Merges que falharam ao aprovar o gate (Story 6.8).",
+    registry=REGISTRY,
+)
+gate_backlog = Gauge(
+    "hdd_gate_backlog",
+    "Gates pendentes de decisão (atualizado ao listar no painel).",
     registry=REGISTRY,
 )
 

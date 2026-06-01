@@ -13,6 +13,7 @@ from hdd.contracts.ports import AuditSink
 from hdd.domain import session as session_fsm
 from hdd.domain import wave as wave_fsm
 from hdd.domain.errors import DomainError
+from hdd.observability.metrics import sessions_active
 
 from .models import SessionRow, WaveRow
 
@@ -41,6 +42,7 @@ class Repository:
             s.add(row)
             await s.commit()
             sid = row.id
+        sessions_active.inc()
         await self._emit(EventType.SESSION_CREATED, sid, {"task": task})
         return sid
 

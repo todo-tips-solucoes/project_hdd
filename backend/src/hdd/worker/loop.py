@@ -17,6 +17,11 @@ from pathlib import Path
 from typing import Protocol
 
 from hdd.observability import get_logger
+from hdd.observability.metrics import (
+    quota_acquisitions,
+    wave_duration,
+    wave_failures,
+)
 
 log = get_logger("worker")
 
@@ -74,14 +79,17 @@ class WorkerLoop:
 
     async def _run_item(self, work_id: str, payload: str, lease_id: str) -> None:
         hb = asyncio.create_task(self._heartbeat(lease_id))
+        started = time.time()
         try:
             await self._run_wave(work_id, payload)
             await self._queue.complete(work_id)
             log.info("worker.onda_concluida", work_id=work_id)
         except Exception:
+            wave_failures.inc()  # sinal p/ alerta de taxa de falha de ondas
             await self._queue.fail(work_id)
             log.exception("worker.onda_falhou", work_id=work_id)
         finally:
+            wave_duration.observe(time.time() - started)
             hb.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await hb
@@ -90,7 +98,9 @@ class WorkerLoop:
         """Uma iteração. Retorna 'no_quota' | 'empty' | 'done' (observabilidade/teste)."""
         lease_id = await self._quota.acquire(self._worker_id)
         if lease_id is None:
+            quota_acquisitions.labels(result="no_quota").inc()  # teto/quota → alerta
             return "no_quota"  # teto global atingido → aguardar (AC 5.2)
+        quota_acquisitions.labels(result="acquired").inc()
         try:
             item = await self._queue.claim()
             if item is None:

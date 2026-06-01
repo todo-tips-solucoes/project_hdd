@@ -1,7 +1,12 @@
 """Story 5.2 — controle de fluxo do WorkerLoop (fakes, sem Postgres/quota)."""
 from __future__ import annotations
 
+from hdd.observability.metrics import REGISTRY
 from hdd.worker.loop import WorkerLoop
+
+
+def _sample(name: str, **labels: str) -> float:
+    return REGISTRY.get_sample_value(name, labels) or 0.0
 
 
 class FakeQuota:
@@ -95,3 +100,24 @@ async def test_onda_que_falha_marca_failed_e_libera_o_lease():
     assert q.failed == ["w1"]
     assert q.completed == []
     assert quota.released == quota.acquired  # não vaza slot mesmo em falha
+
+
+async def test_metricas_quota_e_falha_incrementam():
+    base_acq = _sample("hdd_quota_acquisitions_total", result="acquired")
+    base_noq = _sample("hdd_quota_acquisitions_total", result="no_quota")
+    base_fail = _sample("hdd_wave_failures_total")
+
+    # sem quota → no_quota++ (sinal de quota/teto p/ alerta)
+    await WorkerLoop(FakeQueue([("w", "p")]), FakeQuota(0), _noop, "t").run_once()
+    assert _sample("hdd_quota_acquisitions_total", result="no_quota") == base_noq + 1
+
+    # onda ok → acquired++
+    await WorkerLoop(FakeQueue([("w", "p")]), FakeQuota(1), _noop, "t").run_once()
+    assert _sample("hdd_quota_acquisitions_total", result="acquired") == base_acq + 1
+
+    # onda falha → wave_failures++
+    async def boom(work_id: str, payload: str) -> None:
+        raise RuntimeError("x")
+
+    await WorkerLoop(FakeQueue([("w", "p")]), FakeQuota(1), boom, "t").run_once()
+    assert _sample("hdd_wave_failures_total") == base_fail + 1

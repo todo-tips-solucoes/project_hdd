@@ -18,6 +18,7 @@ from hdd.application.notifications import NotificationService
 from hdd.contracts.events import EventType, make_event
 from hdd.domain.gate import GateStatus
 from hdd.domain.wave import WaveState
+from hdd.observability.metrics import gate_backlog, merge_failures
 
 from ..deps import (
     WaveResumer,
@@ -39,6 +40,7 @@ async def list_gates(
     gate_store: GateStore = Depends(get_gate_store),
 ) -> list[GateOut]:
     pending = await gate_store.list_pending()
+    gate_backlog.set(len(pending))  # backlog de gates (atualizado a cada poll do painel)
     return [
         GateOut(
             id=gid, wave_id=wid, gate_type=gt, reason=reason, status=str(GateStatus.PENDING)
@@ -103,6 +105,7 @@ async def _decide(
         if outcome.wave_state:
             await repo.sync_wave_state(detail.wave_id, WaveState(outcome.wave_state))
         if outcome.merge_error:  # merge falhou: registra na trilha (visível no painel)
+            merge_failures.inc()
             await audit.append(
                 make_event(
                     EventType.ERROR_RAISED,

@@ -31,6 +31,7 @@ from hdd.adapters.workspace import WorkspaceProvisioner, wave_branch
 from hdd.config.settings import Settings
 from hdd.domain import wave as wv
 from hdd.domain.capability import GateType
+from hdd.observability.metrics import gate_convocations
 from hdd.worker.loop import WaveRunner
 
 
@@ -57,6 +58,7 @@ async def bridge_after_wave(
         else:
             reason = "aprovar merge?"
         await gate_store.open_gate(thread_id, GateType.MERGE_DEPLOY, reason)
+        gate_convocations.labels(gate_type=str(GateType.MERGE_DEPLOY)).inc()
 
 
 def build_wave_runner(settings: Settings) -> WaveRunner:
