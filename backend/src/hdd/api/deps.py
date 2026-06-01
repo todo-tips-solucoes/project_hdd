@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 
 from fastapi import HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -25,9 +26,18 @@ from hdd.config import get_settings
 
 from .schemas import User
 
-# Retoma uma onda a partir do checkpoint após a decisão de gate; devolve o
-# `wave_state` final ("merged"|"failed"). Injetável → testes usam um fake (sem quota).
-WaveResumer = Callable[[str, bool], Awaitable[str]]
+
+@dataclass(frozen=True)
+class ResumeOutcome:
+    """Resultado do resume pós-gate: estado final + erro de merge (se houve)."""
+
+    wave_state: str
+    merge_error: str | None = None
+
+
+# Retoma uma onda a partir do checkpoint após a decisão de gate. Injetável →
+# testes usam um fake (sem quota).
+WaveResumer = Callable[[str, bool], Awaitable[ResumeOutcome]]
 
 
 @functools.lru_cache
@@ -51,10 +61,14 @@ def get_wave_resumer() -> WaveResumer:
     """Resume pós-gate (Story 6.2). O grafo só roda o nó `gate` → END: SEM `claude -p`."""
     settings = get_settings()
 
-    async def _resume(thread_id: str, approve: bool) -> str:
+    async def _resume(thread_id: str, approve: bool) -> ResumeOutcome:
         async with open_orchestrator(settings) as orchestrator:
             result = await orchestrator.resume(thread_id, approve)
-        return str(result.get("wave_state", ""))
+        merge_error = result.get("merge_error")
+        return ResumeOutcome(
+            str(result.get("wave_state", "")),
+            str(merge_error) if merge_error else None,
+        )
 
     return _resume
 

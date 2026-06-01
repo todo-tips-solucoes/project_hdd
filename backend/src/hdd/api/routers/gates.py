@@ -99,9 +99,18 @@ async def _decide(
         # Retoma a onda a partir do checkpoint LangGraph (SoT) — Story 6.2.
         # O grafo avança o nó `gate` → END (aprovação=merged, rejeição=failed) e
         # projetamos o estado final em app.waves (read-model). thread_id == wave_id.
-        final = await resume(detail.wave_id, approve)
-        if final:
-            await repo.sync_wave_state(detail.wave_id, WaveState(final))
+        outcome = await resume(detail.wave_id, approve)
+        if outcome.wave_state:
+            await repo.sync_wave_state(detail.wave_id, WaveState(outcome.wave_state))
+        if outcome.merge_error:  # merge falhou: registra na trilha (visível no painel)
+            await audit.append(
+                make_event(
+                    EventType.ERROR_RAISED,
+                    correlation_id=detail.wave_id,
+                    actor=user.login,
+                    payload={"context": "merge", "error": outcome.merge_error},
+                )
+            )
         # Notifica o operador (best-effort: falha de canal não invalida a decisão).
         with contextlib.suppress(Exception):
             await notifications.gate_resolved(

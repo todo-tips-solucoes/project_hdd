@@ -49,7 +49,13 @@ async def bridge_after_wave(
     await repo.sync_wave_state(thread_id, state)
     if state is wv.WaveState.AWAITING_GATE:
         pr_url = str(result.get("pr_url", ""))
-        reason = f"aprovar merge — PR {pr_url}" if pr_url else "aprovar merge?"
+        pr_error = str(result.get("pr_error", ""))
+        if pr_url:
+            reason = f"aprovar merge — PR {pr_url}"
+        elif pr_error:  # PR não aberto: o operador vê o motivo ao decidir
+            reason = f"aprovar merge — ⚠️ PR não aberto: {pr_error}"
+        else:
+            reason = "aprovar merge?"
         await gate_store.open_gate(thread_id, GateType.MERGE_DEPLOY, reason)
 
 

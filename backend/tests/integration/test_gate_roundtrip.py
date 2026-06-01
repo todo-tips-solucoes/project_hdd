@@ -21,7 +21,7 @@ from hdd.adapters.db.gate_store import GateStore
 from hdd.adapters.db.repository import Repository
 from hdd.adapters.orchestrator import WaveOrchestrator
 from hdd.api.app import create_app
-from hdd.api.deps import get_wave_resumer, require_user
+from hdd.api.deps import ResumeOutcome, get_wave_resumer, require_user
 from hdd.api.schemas import User
 from hdd.config import get_settings
 from hdd.contracts.dtos import LlmResult
@@ -89,13 +89,13 @@ async def test_resume_apos_decisao_retoma_a_onda_e_projeta_estado(
     gid = next(g for g, w, _t, _r in await gate_store.list_pending() if w == wid)
 
     # 3) Resumer real: retoma o MESMO checkpoint (thread_id == wid), sem quota.
-    async def _resume(thread_id: str, decision: bool) -> str:
+    async def _resume(thread_id: str, decision: bool) -> ResumeOutcome:
         async with AsyncPostgresSaver.from_conn_string(dsn) as cp2:
             await cp2.setup()
             result = await WaveOrchestrator(
                 _FakeLLM(), verify=lambda _ws: True, checkpointer=cp2
             ).resume(thread_id, decision)
-        return str(result.get("wave_state", ""))
+        return ResumeOutcome(str(result.get("wave_state", "")))
 
     app = create_app()
     app.dependency_overrides[require_user] = lambda: User(login="op")
