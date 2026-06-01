@@ -59,6 +59,27 @@ openssl rand -hex 32 | docker secret create hdd_webhook_hmac_secret -
 
 `printf '%s'` (sem `echo`) evita o `\n` final entrar no segredo.
 
+### Tokens de runtime dos CLIs (Story 6.4 hardening)
+
+`CLAUDE_CODE_OAUTH_TOKEN` (Claude Code) e `GH_TOKEN` (gh: abre PR no worker,
+mergeia na api) são lidos por CLIs **do ambiente**, não pelo `Settings`. Para não
+expô-los via `docker inspect`/env do compose, vêm de **secrets** e o
+`docker-entrypoint.sh` os exporta no boot do container:
+
+| Secret | Consumido por | Escopo recomendado |
+|---|---|---|
+| `hdd_claude_oauth_token` | worker (`claude -p`) | token OAuth da conta de assinatura |
+| `hdd_gh_token` | worker (abre PR) + api (mergeia) | **PAT fine-grained, só o repo-alvo, permissão de merge** |
+
+```bash
+printf '%s' "$CLAUDE_CODE_OAUTH_TOKEN" | docker secret create hdd_claude_oauth_token -
+printf '%s' "$GH_TOKEN"                | docker secret create hdd_gh_token -
+```
+
+> ⚠️ A api é internet-facing (ADR 0003): o `hdd_gh_token` deve ser **mínimo** (um
+> PAT fine-grained limitado ao repo-alvo com permissão de merge), nunca um token
+> de conta amplo. Em dev (sem Swarm) o entrypoint cai para o ENV se o secret faltar.
+
 ## Garantia: segredos não aparecem em logs nem no audit
 
 `backend/src/hdd/observability/logging.py` adiciona o processor
