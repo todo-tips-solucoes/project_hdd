@@ -39,9 +39,16 @@ class GitHubVcs:
         return ["--repo", self._slug] if self._slug else []
 
     async def open_pr(self, branch: str, title: str, body: str) -> PrRef:
-        self._git("checkout", "-b", branch)
+        # `-B` (idempotente): o provisionador da onda (Story 6.6) já cria e faz
+        # checkout da branch ao montar o workspace; `-b` falharia ("already exists").
+        self._git("checkout", "-B", branch)
         self._git("add", "-A")
-        self._git("commit", "-m", title)
+        # Identidade explícita do bot: o clone efêmero (e o worker uid 10001) não
+        # têm git config — sem isto o commit falha ("unable to auto-detect email").
+        self._git(
+            "-c", "user.email=hdd-bot@todo-tips.com", "-c", "user.name=HDD Bot",
+            "commit", "-m", title,
+        )
         self._git("push", "-u", "origin", branch)
         out = self._run(
             [

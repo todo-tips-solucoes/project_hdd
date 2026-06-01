@@ -25,7 +25,9 @@ async def test_open_pr_cria_draft_e_parseia_numero():
 
     gh = next(c for c in calls if c[0] == "gh")
     assert "--draft" in gh  # abre rascunho
-    assert any("checkout" in c and "-b" in c for c in calls)  # criou branch
+    assert any("checkout" in c and "-B" in c for c in calls)  # garante a branch (idempotente)
+    commit = next(c for c in calls if "commit" in c)
+    assert "user.email=hdd-bot@todo-tips.com" in commit  # identidade explícita do bot
     assert any("push" in c for c in calls)  # publicou
 
 

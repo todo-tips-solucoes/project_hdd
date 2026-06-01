@@ -40,11 +40,13 @@ def test_modo_workspace_passa_cwd_e_libera_escrita(monkeypatch):
     cap: dict = {}
     _patch(monkeypatch, _FakeProc(0, '{"result":"feito"}'), cap)
     ClaudeSubscriptionProvider(
-        cwd="/ws", disallowed_tools=sub.WORKSPACE_DISALLOWED
+        cwd="/ws", disallowed_tools=sub.WORKSPACE_DISALLOWED, permission_mode="acceptEdits"
     ).invoke("implemente")
     assert cap["cwd"] == "/ws"  # claude roda no clone efêmero (Story 6.6)
     assert "Bash" in cap["cmd"] and "WebFetch" in cap["cmd"]  # ainda bloqueados
     assert "Write" not in cap["cmd"] and "Edit" not in cap["cmd"]  # liberados
+    # sem isto o claude -p só "aguarda aprovação" e não escreve (smoke E2E):
+    assert "--permission-mode" in cap["cmd"] and "acceptEdits" in cap["cmd"]
 
 
 def test_modo_padrao_sem_cwd_bloqueia_escrita(monkeypatch):
