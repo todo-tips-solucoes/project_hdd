@@ -676,3 +676,69 @@ privilege: ferramentas de escrita só dentro do workspace, via capability broker
 **And** o nó `verify` (Story 6.3) roda a suíte contra esse workspace → sinal real
 **And** ao encerrar a onda (merge/fail/escala) o workspace efêmero é limpo
 **And** nenhum segredo de produção entra no container (mantém o contrato da Story 2.3)
+
+> **Stories 6.7–6.9 registradas em 2026-06-01** a partir dos gaps descobertos ao
+> preparar a Story 6.4: o caminho do smoke E2E (`enqueue → claude → verify → PR
+> rascunho → gate → resume → merge`) tem três segmentos ainda não-wirados. A 6.4
+> (deploy + smoke real na Hetzner) fica BLOQUEADA por estas três e só roda depois.
+
+### Story 6.7: Nó de PR rascunho no fluxo da onda
+
+> Gap: `GitHubVcs.open_pr` (Story 2.8) existe mas NENHUM nó do orquestrador o chama
+> — o grafo vai de `verify` direto ao `gate`, sem abrir PR. O smoke espera um PR.
+
+As a revisor,
+I want que a onda abra um PR rascunho com as mudanças antes do gate de merge,
+So that o operador revise um PR real no painel/GitHub ao decidir o gate.
+
+**Acceptance Criteria:**
+
+**Given** uma onda cujo `verify` passou e um workspace com mudanças (Story 6.6)
+**When** o grafo avança de `verify` para o gate
+**Then** um nó intermediário chama `Vcs.open_pr(branch, title, body)` e guarda o
+`PrRef` (número/url) no estado da onda
+**And** o gate de merge referencia o PR (url no `reason`/contexto para o painel)
+**And** a porta `Vcs` é injetada (fakes nos testes — sem rede/gh real)
+**And** falha ao abrir o PR é tratada (onda não trava silenciosamente)
+
+### Story 6.8: Merge real ao aprovar o gate
+
+> Gap: o resume (Story 6.2) ao aprovar só faz a transição de estado para MERGED —
+> não há `gh pr merge` real. O resume roda na API; o merge do PR não precisa do
+> workspace (opera no GitHub via número do PR), o que resolve o split worker/API.
+
+As a operador,
+I want que aprovar o gate de merge efetive o merge do PR rascunho,
+So that a feature seja realmente integrada, não só marcada como MERGED.
+
+**Acceptance Criteria:**
+
+**Given** um gate de merge aprovado no painel (Story 6.2) e um `PrRef` no estado (6.7)
+**When** o resume avança a onda para MERGED
+**Then** `Vcs.merge_pr(<número>)` é chamado e o PR é integrado (draft → ready → merge)
+**And** rejeição NÃO faz merge (onda → FAILED, PR fechado ou deixado aberto p/ correção)
+**And** a operação é auditada e idempotente (reaprovar não re-mergeia)
+**And** decisão de ONDE roda o merge (API com gh+token vs item de trabalho p/ o worker)
+fica registrada em ADR
+
+### Story 6.9: Verificação no sandbox a partir do worker em produção
+
+> Gap: o `verify` (Story 6.3) faz `docker run`, mas o container `worker` não tem o
+> CLI `docker` nem acesso ao daemon, e roda como uid não-root. Em produção o verify
+> falha. Decisão sensível de segurança (montar o socket do Docker = root no host).
+
+As a DevOps,
+I want que o worker consiga rodar o sandbox de verificação no nó de produção,
+So that o `verify` real dispare no deploy, não só em dev.
+
+**Acceptance Criteria:**
+
+**Given** o worker no Swarm e o `SandboxRunner` (Story 2.3)
+**When** o nó `verify` executa em produção
+**Then** o worker tem acesso ao runtime de container (modelo decidido: socket do
+Docker montado + CLI no `worker` image, OU sandbox remoto/socket-proxy) e o sandbox
+roda com os controles de isolamento intactos
+**And** a imagem `hdd-sandbox` está disponível no nó (build/publicação)
+**And** o trade-off de segurança (acesso ao Docker daemon) é registrado em ADR
+**And** `stack.yaml` expõe os settings da malha 6.x ao worker (`HDD_REPO_URL`,
+`HDD_WORKSPACE_ROOT`, `HDD_VERIFY_COMMAND`, `HDD_SANDBOX_IMAGE`, `HDD_SANDBOX_NETWORK`)
