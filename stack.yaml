@@ -34,13 +34,33 @@ services:
         # Volume local: fixa o Postgres no nó manager (1 nó no MVP).
         constraints: [node.role == manager]
 
+  # Migration one-shot (Story 6.12). Roda `alembic upgrade head` uma vez e sai
+  # (restart_policy: none). Tira a migration do `command` da api → sem corrida se a
+  # api escalar. ⚠️ Swarm IGNORA depends_on/condition: não há ordenação garantida —
+  # api/worker têm restart on-failure e reconectam até o schema existir; ou rode o
+  # migrate primeiro (ver docs/runbooks/deploy.md).
+  migrate:
+    image: ${HDD_IMAGE_API:-hdd-api:latest}
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      HDD_LLM_DRIVER: ${HDD_LLM_DRIVER:-subscription}
+      HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
+    secrets:
+      - hdd_pg_dsn
+    networks:
+      - backend
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: none
+
   api:
     image: ${HDD_IMAGE_API:-hdd-api:latest}
-    # Migrations idempotentes + uvicorn (--proxy-headers: HTTPS via Caddy).
+    # Só o servidor (--proxy-headers: HTTPS via Caddy). Migration → serviço `migrate`.
     command:
       - sh
       - -c
-      - alembic upgrade head && exec uvicorn hdd.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
+      - exec uvicorn hdd.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
     environment:
       HDD_LLM_DRIVER: ${HDD_LLM_DRIVER:-subscription}
       HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}

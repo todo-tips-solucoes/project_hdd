@@ -4,7 +4,7 @@
 # presente, via labels — adicionar quando houver hostname/OAuth). A APLICAÇÃO é a
 # mesma: lê /run/secrets/hdd_* igual ao Swarm. Zero alteração de código.
 #
-#   docker compose -f compose.prod.yaml up -d postgres api worker
+#   docker compose -f compose.prod.yaml up -d   # migrate roda uma vez; api/worker esperam-no
 services:
   postgres:
     # Imagem pgvector + pgBackRest (Story 6.5): WAL archiving → R2.
@@ -39,12 +39,29 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # Migration one-shot (Story 6.12). Roda `alembic upgrade head` UMA vez, num único
+  # container, e sai. api/worker só sobem após ela completar (service_completed_
+  # successfully). Antes a migration vivia no `command` da api → corrida se a api
+  # escalasse além de 1 réplica (dívida do Epic 5). Idempotente: sai 0 se já em head.
+  migrate:
+    image: ${HDD_IMAGE_API:-hdd-api:latest}
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
+    secrets:
+      - hdd_pg_dsn
+    networks: [hdd_backend]
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+
   api:
     image: ${HDD_IMAGE_API:-hdd-api:latest}
+    # Só o servidor — a migration é responsabilidade do serviço `migrate` (6.12).
     command:
       - sh
       - -c
-      - alembic upgrade head && exec uvicorn hdd.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
+      - exec uvicorn hdd.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
     environment:
       HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
       HDD_REPO_SLUG: ${HDD_REPO_SLUG:-}
@@ -64,6 +81,7 @@ services:
     networks: [hdd_backend, hdd_edge]
     depends_on:
       postgres: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
@@ -106,6 +124,7 @@ services:
     networks: [hdd_backend]
     depends_on:
       postgres: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
     restart: unless-stopped
 
   # Painel (Next.js standalone) — servido pelo Traefik no hostname; o login OAuth
