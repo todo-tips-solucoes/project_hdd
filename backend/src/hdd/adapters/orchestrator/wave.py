@@ -38,6 +38,7 @@ class WaveGraphState(TypedDict, total=False):
     pr_url: str
     pr_number: int
     pr_error: str
+    merge_error: str
 
 
 class WaveOrchestrator:
@@ -97,13 +98,20 @@ class WaveOrchestrator:
             return {"pr_error": str(exc)}
         return {"pr_url": pr.url, "pr_number": pr.number}
 
-    def _gate(self, state: WaveGraphState) -> dict[str, Any]:
+    async def _gate(self, state: WaveGraphState) -> dict[str, Any]:
         approved = bool(interrupt({"gate": "merge_deploy", "reason": "aprovar merge?"}))
+        out: dict[str, Any] = {}
+        if approved and self._vcs is not None and state.get("pr_number"):
+            # Merge real do PR ao aprovar (Story 6.8). Roda no resume (sem quota).
+            try:
+                await self._vcs.merge_pr(int(state["pr_number"]))
+            except Exception as exc:  # noqa: BLE001 — registra; a decisão de merge vale
+                log.exception("orchestrator.merge_falhou", pr=state.get("pr_number"))
+                out["merge_error"] = str(exc)
         target = wv.WaveState.MERGED if approved else wv.WaveState.FAILED
-        return {
-            "wave_state": self._to(state, target),
-            "result": "merged" if approved else "rejected",
-        }
+        out["wave_state"] = self._to(state, target)
+        out["result"] = "merged" if approved else "rejected"
+        return out
 
     def _escalate(self, state: WaveGraphState) -> dict[str, Any]:
         interrupt({"gate": "escalation", "reason": "loop de correção esgotou N"})

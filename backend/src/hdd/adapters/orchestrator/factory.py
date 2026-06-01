@@ -45,8 +45,12 @@ async def open_orchestrator(
     provider = ClaudeSubscriptionProvider(
         model=settings.model, cwd=workspace or None, disallowed_tools=disallowed
     )
-    # Com workspace, o nó `pr` (Story 6.7) abre o PR rascunho a partir do clone.
-    vcs = GitHubVcs(workspace) if workspace else None
+    # Worker (com workspace): nó `pr` abre o PR a partir do clone (6.7).
+    # Resume na API (sem workspace, com repo_slug): nó `gate` mergeia via `gh
+    # --repo` (6.8). Sem nenhum dos dois → sem VCS (dev).
+    vcs = None
+    if workspace or settings.repo_slug:
+        vcs = GitHubVcs(workspace or ".", repo_slug=settings.repo_slug or None)
     async with AsyncPostgresSaver.from_conn_string(settings.pg_dsn) as checkpointer:
         await checkpointer.setup()
         yield WaveOrchestrator(

@@ -1,8 +1,10 @@
-"""GitHubVcs — implementa a porta Vcs via git + gh CLI (Story 2.8).
+"""GitHubVcs — implementa a porta Vcs via git + gh CLI (Story 2.8 + 6.8).
 
-Abre sempre um **PR rascunho** (nunca faz merge): o merge em branch protegida é
-gate RF-03b.1, interceptado pelo capability broker. O token é escopado e injetado
-por ambiente (nunca logado). O runner é injetável para testes sem rede.
+Abre um **PR rascunho** (`open_pr`, no worker, a partir do clone da onda) e o
+**integra ao aprovar o gate** (`merge_pr`, no resume da API — só precisa do número
+do PR, não do workspace). `repo_slug` torna o `gh` explícito quanto ao repo
+(`--repo owner/name`), necessário no merge na API onde não há git no cwd. O token
+é escopado e injetado por ambiente (nunca logado). Runner injetável p/ testes.
 """
 from __future__ import annotations
 
@@ -20,12 +22,21 @@ def _default_runner(cmd: list[str]) -> str:
 
 
 class GitHubVcs:
-    def __init__(self, repo_dir: str, runner: Runner = _default_runner) -> None:
+    def __init__(
+        self,
+        repo_dir: str,
+        runner: Runner = _default_runner,
+        repo_slug: str | None = None,
+    ) -> None:
         self._dir = repo_dir
         self._run = runner
+        self._slug = repo_slug
 
     def _git(self, *args: str) -> str:
         return self._run(["git", "-C", self._dir, *args])
+
+    def _repo_args(self) -> list[str]:
+        return ["--repo", self._slug] if self._slug else []
 
     async def open_pr(self, branch: str, title: str, body: str) -> PrRef:
         self._git("checkout", "-b", branch)
@@ -38,9 +49,17 @@ class GitHubVcs:
                 "--head", branch,
                 "--title", title,
                 "--body", body,
+                *self._repo_args(),
             ]
         )
         url = out.strip().splitlines()[-1] if out.strip() else ""
         match = re.search(r"/pull/(\d+)", url)
         number = int(match.group(1)) if match else 0
         return PrRef(number=number, url=url, branch=branch)
+
+    async def merge_pr(self, pr_number: int) -> None:
+        """Integra o PR: draft → ready → merge (squash, remove a branch da onda)."""
+        n = str(pr_number)
+        repo = self._repo_args()
+        self._run(["gh", "pr", "ready", n, *repo])
+        self._run(["gh", "pr", "merge", n, "--squash", "--delete-branch", *repo])

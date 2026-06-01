@@ -15,10 +15,14 @@ class FakeLLM:
 class FakeVcs:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, str]] = []
+        self.merged: list[int] = []
 
     async def open_pr(self, branch: str, title: str, body: str) -> PrRef:
         self.calls.append((branch, title, body))
         return PrRef(number=42, url="https://github.com/x/y/pull/42", branch=branch)
+
+    async def merge_pr(self, pr_number: int) -> None:
+        self.merged.append(pr_number)
 
 
 async def test_happy_path_pausa_no_gate_e_faz_merge():
@@ -92,3 +96,43 @@ async def test_sem_vcs_nem_branch_segue_ao_gate_sem_pr():
     out = await orch.run_wave("w-novcs", "x")  # sem workspace/branch/vcs
     assert out["wave_state"] == "awaiting_gate"
     assert not out.get("pr_url")
+
+
+# --- Story 6.8: merge real ao aprovar o gate ------------------------------
+async def test_aprovar_gate_mergeia_o_pr():
+    vcs = FakeVcs()
+    orch = WaveOrchestrator(
+        FakeLLM(), verify=lambda ws: True, checkpointer=MemorySaver(), vcs=vcs
+    )
+    await orch.run_wave("w-m", "x", workspace="/ws", branch="b")  # abre PR #42
+    final = await orch.resume("w-m", True)
+    assert final["wave_state"] == "merged"
+    assert vcs.merged == [42]  # merge_pr chamado com o número do PR
+
+
+async def test_rejeitar_gate_nao_mergeia():
+    vcs = FakeVcs()
+    orch = WaveOrchestrator(
+        FakeLLM(), verify=lambda ws: True, checkpointer=MemorySaver(), vcs=vcs
+    )
+    await orch.run_wave("w-r", "x", workspace="/ws", branch="b")
+    final = await orch.resume("w-r", False)
+    assert final["wave_state"] == "failed"
+    assert vcs.merged == []  # rejeição nunca mergeia
+
+
+async def test_merge_falho_nao_trava_o_resume():
+    class HalfVcs:
+        async def open_pr(self, branch: str, title: str, body: str) -> PrRef:
+            return PrRef(number=7, url="u", branch=branch)
+
+        async def merge_pr(self, pr_number: int) -> None:
+            raise RuntimeError("merge bloqueado por checks")
+
+    orch = WaveOrchestrator(
+        FakeLLM(), verify=lambda ws: True, checkpointer=MemorySaver(), vcs=HalfVcs()
+    )
+    await orch.run_wave("w-mf", "x", workspace="/ws", branch="b")
+    final = await orch.resume("w-mf", True)
+    assert final["wave_state"] == "merged"  # decisão humana de merge mantém-se
+    assert "merge bloqueado" in final.get("merge_error", "")
