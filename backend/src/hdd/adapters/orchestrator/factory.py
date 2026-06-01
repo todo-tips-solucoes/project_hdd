@@ -21,7 +21,8 @@ from hdd.config.settings import Settings
 
 
 def _always_ok(_workspace: str) -> bool:
-    # Verificador conservador (6.3 o torna real): encaminha ao gate humano de merge.
+    # Default para o caminho de RESUME (API), onde o nó `verify` nunca é
+    # reexecutado. O worker injeta o verificador real do sandbox (Story 6.3).
     return True
 
 

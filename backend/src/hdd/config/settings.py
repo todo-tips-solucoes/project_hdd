@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     model: str | None = None
     log_level: str = "INFO"
 
+    # --- Epic 6: verificação automática no sandbox (Story 6.3) -------------
+    # Suíte de testes do projeto rodada no sandbox endurecido; passa só se exit 0.
+    verify_command: str = "pytest -q"
+    sandbox_image: str = "hdd-sandbox:latest"
+    # Rede do sandbox de verificação: "none" (deny-all) por padrão — testes não
+    # devem precisar de egress; relaxar só via proxy allowlist se necessário.
+    sandbox_network: str = "none"
+
     # --- Epic 4: Painel Web (RF-07) ---------------------------------------
     # OAuth GitHub: aprovação de gates acontece NO painel autenticado.
     github_client_id: str = ""

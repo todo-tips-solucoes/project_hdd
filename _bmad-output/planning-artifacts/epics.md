@@ -650,3 +650,29 @@ So that o backup/PITR (Story 5.5) opere em produção, não só em teste local.
 **Then** os segmentos WAL e o base backup chegam à R2 e `pgbackrest check` passa
 **And** um restore PITR de teste a partir da R2 recupera o estado (procedimento do runbook)
 **And** o agendamento (full/diff) está ativo
+
+### Story 6.6: Provisionamento de workspace da onda (clone + execução no sandbox)
+
+> Registrada em 2026-06-01 a partir do gap descoberto na Story 6.3: o verificador
+> do sandbox é real e testado, mas o worker chama `run_wave` SEM workspace e o
+> `claude -p` (nó `execute`) não roda dentro de um workspace/sandbox. Com workspace
+> vazio o `verify` defere ao gate (conservador) — logo a verificação automática só
+> dispara de fato quando houver um workspace provisionado. Esta story fecha esse fio.
+
+As a desenvolvedor,
+I want que cada onda receba um workspace isolado (repo clonado em branch própria) e
+que `execute`/`verify` operem dentro dele no sandbox,
+So that o `claude -p` produza mudanças num diretório efêmero e a verificação rode
+contra o código real da onda (não contra workspace vazio).
+
+**Acceptance Criteria:**
+
+**Given** uma onda iniciada (Story 6.1) e o `SandboxRunner` endurecido (Story 2.3)
+**When** o worker prepara a onda
+**Then** o repo-alvo é clonado num diretório efêmero por onda (branch da onda) e o
+caminho é passado a `run_wave(..., workspace=<dir>)`
+**And** o nó `execute` roda `claude -p` com esse workspace montado no sandbox (least-
+privilege: ferramentas de escrita só dentro do workspace, via capability broker)
+**And** o nó `verify` (Story 6.3) roda a suíte contra esse workspace → sinal real
+**And** ao encerrar a onda (merge/fail/escala) o workspace efêmero é limpo
+**And** nenhum segredo de produção entra no container (mantém o contrato da Story 2.3)
