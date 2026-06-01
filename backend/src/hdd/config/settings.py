@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     repo_url: str = ""
     # Base para os workspaces efêmeros; vazio → diretório temporário do sistema.
     workspace_root: str = ""
+    # Slug owner/name do repo-alvo — usado no merge via `gh --repo` (Story 6.8),
+    # onde o resume na API não tem git no cwd. Vazio → sem merge real (dev).
+    repo_slug: str = ""
 
     # --- Epic 4: Painel Web (RF-07) ---------------------------------------
     # OAuth GitHub: aprovação de gates acontece NO painel autenticado.

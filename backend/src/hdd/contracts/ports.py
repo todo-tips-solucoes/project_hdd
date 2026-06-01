@@ -43,6 +43,9 @@ class Vcs(Protocol):
     """Integração GitHub (branch/commit/PR) — RF-09."""
 
     async def open_pr(self, branch: str, title: str, body: str) -> PrRef: ...
+    async def merge_pr(self, pr_number: int) -> None:
+        """Integra o PR (draft → ready → merge) ao aprovar o gate — Story 6.8."""
+        ...
 
 
 @runtime_checkable
