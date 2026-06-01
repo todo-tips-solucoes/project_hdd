@@ -49,6 +49,9 @@ services:
       HDD_PANEL_BASE_URL: https://${HDD_DOMAIN}
       HDD_CORS_ORIGINS: https://${HDD_DOMAIN}
       HDD_CLIHELPER_BASE_URL: ${HDD_CLIHELPER_BASE_URL:-}
+      # Story 6.8/ADR 0003: o resume na API faz `gh pr merge` ao aprovar o gate.
+      HDD_REPO_SLUG: ${HDD_REPO_SLUG:-}
+      GH_TOKEN: ${HDD_GH_TOKEN:-}
     secrets:
       - hdd_pg_dsn
       - hdd_session_secret
@@ -75,6 +78,27 @@ services:
       # Claude Code (conta de assinatura) e GitHub (gh CLI abre o PR rascunho).
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       GH_TOKEN: ${HDD_GH_TOKEN:-}
+      # Story 6.9: malha de execução real (workspace por onda + verify no sandbox).
+      # Sem HDD_REPO_URL o worker não provisiona workspace (verify defere ao gate).
+      HDD_REPO_URL: ${HDD_REPO_URL:-}
+      HDD_REPO_SLUG: ${HDD_REPO_SLUG:-}
+      HDD_VERIFY_COMMAND: ${HDD_VERIFY_COMMAND:-pytest -q}
+      HDD_SANDBOX_IMAGE: ${HDD_SANDBOX_IMAGE:-hdd-sandbox:latest}
+      HDD_SANDBOX_NETWORK: ${HDD_SANDBOX_NETWORK:-none}
+      # ⚠️ O workspace deve viver num caminho COMPARTILHADO host↔worker no MESMO
+      # path: o `docker run -v <ws>:/workspace` do verify é resolvido pelo DAEMON
+      # DO HOST, não pelo FS do container. O bind abaixo garante o mesmo caminho.
+      HDD_WORKSPACE_ROOT: ${HDD_WORKSPACE_ROOT:-/var/lib/hdd-workspaces}
+    volumes:
+      # Socket do Docker: o nó `verify` faz `docker run` do sandbox (ADR 0004).
+      # ⚠️ socket = controle do daemon = root-equivalente no host.
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Workspaces efêmeros num caminho idêntico host↔worker (ver acima).
+      - ${HDD_WORKSPACE_ROOT:-/var/lib/hdd-workspaces}:${HDD_WORKSPACE_ROOT:-/var/lib/hdd-workspaces}
+    # uid 10001 acessa o socket sem rodar como root: HDD_DOCKER_GID = gid do grupo
+    # `docker` no host (`getent group docker | cut -d: -f3`).
+    group_add:
+      - "${HDD_DOCKER_GID:-999}"
     secrets:
       - hdd_pg_dsn
     networks:

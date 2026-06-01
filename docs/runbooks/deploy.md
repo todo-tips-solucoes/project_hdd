@@ -31,11 +31,19 @@ Internet ──443/80──> caddy ──> api:8000        (/api,/auth,/webhooks
    > `hdd_postgres_password`.
 4. **Imagens** buildadas no nó (ou num registry e referenciadas via env):
    ```bash
-   docker build -t hdd-api:latest    --target api    backend
-   docker build -t hdd-worker:latest --target worker backend
-   docker build -t hdd-frontend:latest                frontend
+   docker build -t hdd-api:latest      --target api    backend
+   docker build -t hdd-worker:latest   --target worker backend
+   docker build -t hdd-frontend:latest                 frontend
+   docker build -t hdd-sandbox:latest                  sandbox   # Story 6.3/6.9
    ```
-5. **deploy.env** preenchido a partir de `deploy.env.example`.
+   > A imagem `hdd-sandbox` precisa existir NO NÓ (o worker faz `docker run` dela
+   > no daemon do host). Se usar registry, garanta que o daemon a puxe.
+5. **deploy.env** preenchido a partir de `deploy.env.example`. Para o E2E real
+   (Story 6.4) preencha também: `HDD_REPO_URL`, `HDD_REPO_SLUG`, `HDD_WORKSPACE_ROOT`,
+   `HDD_DOCKER_GID` (`getent group docker | cut -d: -f3`).
+6. **Workspaces (Story 6.9):** `mkdir -p /var/lib/hdd-workspaces` no host (o worker
+   clona aqui e o sandbox de verify monta o MESMO path via o daemon — por isso é um
+   caminho do host bind-montado no worker; ver ADR 0004).
 
 ## Deploy
 
@@ -59,14 +67,30 @@ OAuth: registre o callback `https://$HDD_DOMAIN/auth/callback` no GitHub App.
 `HDD_PANEL_BASE_URL`/`HDD_CORS_ORIGINS` já são `https://$HDD_DOMAIN` (stack.yaml);
 o `--proxy-headers` do uvicorn faz o redirect OAuth usar https atrás do Caddy.
 
-## Credenciais do worker (decisão do operador: via .env)
+## Credenciais do worker e da API (decisão do operador: via .env)
 
-O worker invoca `claude -p` (conta de assinatura) e `gh` (PR rascunho). Os
-tokens vêm do `deploy.env`: `CLAUDE_CODE_OAUTH_TOKEN` e `HDD_GH_TOKEN`.
+O worker invoca `claude -p` (conta de assinatura) e `gh` (abre o PR rascunho);
+a **API** invoca `gh` para **mergear** o PR ao aprovar o gate (Story 6.8/ADR 0003).
+Os tokens vêm do `deploy.env`: `CLAUDE_CODE_OAUTH_TOKEN` e `HDD_GH_TOKEN` (este
+último vai para worker e api).
 > ⚠️ Risco D-032/D-052: automação contínua na conta de assinatura. O provider
-> já passa `--disallowedTools` (descoberta da PoC). Endurecimento futuro: spawn
-> do sandbox (`sandbox/Dockerfile`) via socket Docker — fora do MVP por exigir
-> privilégio root-no-host.
+> já passa `--disallowedTools` (descoberta da PoC).
+> ⚠️ **Segurança (ADR 0003):** a API (internet-facing) ganha `gh`+`GH_TOKEN` para
+> mergear → use um token de **escopo mínimo** (só o repo-alvo).
+
+## Verify no sandbox a partir do worker (Story 6.9 / ADR 0004)
+
+O nó `verify` faz `docker run` da imagem `hdd-sandbox` (`--network none`, sem
+credenciais). Em produção isso exige que o worker fale com o daemon do host:
+- o `stack.yaml` monta `/var/run/docker.sock` no worker e o `Dockerfile` traz o
+  CLI `docker`;
+- `HDD_DOCKER_GID` (gid do grupo `docker` no host) dá ao uid 10001 acesso ao
+  socket sem rodar como root;
+- `HDD_WORKSPACE_ROOT` é um caminho do **host** bind-montado no worker no mesmo
+  path (o mount do sandbox é resolvido pelo daemon do host — ver ADR 0004).
+> ⚠️ **Segurança:** o socket do Docker é **root-equivalente no host**. Maior
+> exposição do MVP; aceita para o dogfood single-operator (ADR 0004 lista as
+> mitigações e a evolução: socket-proxy / runtime rootless).
 
 ## Escala e teto de quota
 
