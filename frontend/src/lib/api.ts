@@ -11,6 +11,8 @@ export type SessionOut = components["schemas"]["SessionOut"];
 export type WaveOut = components["schemas"]["WaveOut"];
 export type GateOut = components["schemas"]["GateOut"];
 export type GateDecisionOut = components["schemas"]["GateDecisionOut"];
+export type FeatureStart = components["schemas"]["FeatureStart"];
+export type FeatureStarted = components["schemas"]["FeatureStarted"];
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -39,6 +41,12 @@ export const logout = (): Promise<unknown> =>
 
 export const getWaves = (): Promise<WavesSnapshot> =>
   req<WavesSnapshot>("/api/waves");
+
+export const startFeature = (task: string): Promise<FeatureStarted> =>
+  req<FeatureStarted>("/api/features", {
+    method: "POST",
+    body: JSON.stringify({ task } satisfies FeatureStart),
+  });
 
 export const getGates = (): Promise<GateOut[]> => req<GateOut[]>("/api/gates");
 export const getGate = (id: string): Promise<GateOut> =>
