@@ -16,8 +16,14 @@ Internet ──443/80──> caddy ──> api:8000        (/api,/auth,/webhooks
   + git/gh para abrir PR), `hdd-frontend` (Next.js standalone).
 - **Same-origin:** painel e API no mesmo domínio → o frontend é buildado com
   `NEXT_PUBLIC_API_BASE=""` (URLs relativas; cookie de sessão httpOnly viaja).
-- **Migrations:** o serviço `api` roda `alembic upgrade head` antes do uvicorn
-  (idempotente; com 1 réplica não há corrida).
+- **Migrations (Story 6.12):** um serviço **`migrate`** one-shot roda `alembic upgrade
+  head` uma única vez e sai; `api`/`worker` dependem dele. No **compose** isso é
+  garantido por `depends_on: migrate: condition: service_completed_successfully`. No
+  **Swarm** o `depends_on` é ignorado — o `migrate` corre com `restart_policy: none` e
+  api/worker reconectam (restart on-failure) até o schema existir; se preferir ordem
+  determinística, rode a migration antes do deploy:
+  `docker run --rm --network hdd_backend -v ./secrets:/run/secrets:ro hdd-api:latest alembic upgrade head`.
+  Tirar a migration do `command` da api elimina a corrida quando a api escala &gt; 1 réplica.
 
 ## Pré-requisitos
 
@@ -103,7 +109,7 @@ fica ao Traefik via labels). Validado por um smoke E2E real (2026-06-01).
 ```bash
 mkdir -p secrets && chmod 700 secrets   # criar os ficheiros hdd_* (ver secrets.md)
 mkdir -p /var/lib/hdd-workspaces && chmod 777 /var/lib/hdd-workspaces  # worker uid 10001 escreve aqui
-docker compose --env-file deploy.env -f compose.prod.yaml up -d postgres api worker
+docker compose --env-file deploy.env -f compose.prod.yaml up -d   # migrate roda 1x; api/worker esperam-no
 ```
 
 > ⚠️ **Gotchas do compose (descobertos no smoke):**

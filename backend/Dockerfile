@@ -55,8 +55,11 @@ USER 10001:10001
 EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/healthz').status==200 else 1)"
-# Migrations + uvicorn (--proxy-headers: OAuth/HTTPS atrás do Caddy).
-CMD ["sh", "-c", "alembic upgrade head && exec uvicorn hdd.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
+# Só o servidor (--proxy-headers: OAuth/HTTPS atrás do Caddy/Traefik). A migration
+# NÃO é embutida aqui: roda no serviço one-shot `migrate` antes da api (Story 6.12),
+# para não correr quando a api escala além de 1 réplica. Para migrar com esta mesma
+# imagem: `docker run --rm hdd-api:latest alembic upgrade head`.
+CMD ["sh", "-c", "exec uvicorn hdd.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'"]
 
 # --- worker -----------------------------------------------------------------
 # Precisa do Claude Code CLI (Node), git+gh (GitHubVcs: PR/merge) e do CLI docker
