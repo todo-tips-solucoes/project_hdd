@@ -115,6 +115,31 @@ docker compose --env-file deploy.env -f compose.prod.yaml up -d postgres api wor
 >    `push` de repos privados — é preciso `gh auth setup-git` (o `docker-entrypoint.sh`
 >    já o faz). Sem isto: *could not read Username for github.com*.
 
+### Ingress via Traefik existente + OAuth (validado em produção 2026-06-01)
+
+O `compose.prod.yaml` já traz labels Traefik (entrypoints `web`/`websecure`,
+certresolver `leresolver`). Passos:
+
+1. **DNS** de `$HDD_DOMAIN` → IP do host (Traefik emite o cert por HTTP-challenge).
+2. **GitHub OAuth App** (https://github.com/settings/developers):
+   - Homepage `https://$HDD_DOMAIN` · Callback `https://$HDD_DOMAIN/auth/callback`
+   - `HDD_GITHUB_CLIENT_ID` (env, `deploy.env`) + secret `hdd_github_client_secret`.
+   - `HDD_GITHUB_ALLOWLIST` = logins autorizados (só estes aprovam gates; fail-closed).
+3. Subir e **conectar o Traefik à rede do HDD** (senão não alcança os contêineres):
+   ```bash
+   docker compose --env-file deploy.env -f compose.prod.yaml up -d
+   docker network connect hdd_edge traefik
+   ```
+4. Verificar: `https://$HDD_DOMAIN/healthz` (api, TLS) · `https://$HDD_DOMAIN/` (painel)
+   · `GET /auth/login` → 302 ao GitHub com o `client_id`/callback corretos.
+
+Routing: `api` responde a `/api,/auth,/webhooks,/healthz,/readyz,/metrics,/docs`
+(prioridade 100); o resto do hostname vai ao `frontend` (painel, prioridade 1).
+
+> ⚠️ O painel **ainda não tem UI para INICIAR feature** (Story 6.10): a `POST
+> /api/features` existe (6.1) mas sem botão. Inicie via CLI (`docker compose exec
+> api hdd start "..."`) até a 6.10; a aprovação de gates JÁ é pelo painel.
+
 ## Escala e teto de quota
 
 `HDD_WORKER_REPLICAS` escala o worker. O teto global de `claude -p` concorrentes

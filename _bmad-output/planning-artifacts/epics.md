@@ -742,3 +742,21 @@ roda com os controles de isolamento intactos
 **And** o trade-off de segurança (acesso ao Docker daemon) é registrado em ADR
 **And** `stack.yaml` expõe os settings da malha 6.x ao worker (`HDD_REPO_URL`,
 `HDD_WORKSPACE_ROOT`, `HDD_VERIFY_COMMAND`, `HDD_SANDBOX_IMAGE`, `HDD_SANDBOX_NETWORK`)
+
+### Story 6.10: UI do painel para iniciar uma feature
+
+> Gap descoberto no deploy de produção (2026-06-01): o painel autenticado aprova/
+> rejeita gates, mas **não tem como INICIAR uma feature** — a `POST /api/features`
+> existe (Story 6.1) mas sem botão/form. Hoje inicia-se via CLI (`hdd start`).
+
+As a operador,
+I want iniciar uma feature pelo painel (não só pela CLI),
+So that o ciclo completo (iniciar → gate → aprovar) seja todo pelo painel.
+
+**Acceptance Criteria:**
+
+**Given** o painel autenticado (Epic 4) e o endpoint `POST /api/features` (Story 6.1)
+**When** o operador preenche a tarefa e submete
+**Then** o painel chama `POST /api/features` e mostra a onda criada no dashboard
+**And** validação/feedback de erro (tarefa vazia, falha da API)
+**And** os tipos TS vêm do OpenAPI versionado (sem drift)
