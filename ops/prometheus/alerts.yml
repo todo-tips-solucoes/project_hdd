@@ -1,0 +1,51 @@
+# Regras de alerta do HDD (Story 6.4 — observabilidade).
+# Carregar no Prometheus (rule_files) que faz scrape do /metrics da api+worker.
+# Limiares são pontos de partida — calibrar com o baseline real (Sprint 0).
+groups:
+  - name: hdd
+    rules:
+      - alert: HddQuotaExausta
+        # Worker sem slot de quota de forma sustentada → conta esgotada ou teto
+        # baixo (ou leases vazados segurando slots — ver runbook).
+        expr: sum(rate(hdd_quota_acquisitions_total{result="no_quota"}[10m])) > 0.1
+        for: 15m
+        labels: {severity: warning}
+        annotations:
+          summary: "HDD: worker sem quota há 15m"
+          runbook: "docs/runbooks/incidents.md#quota-exausta"
+
+      - alert: HddOndasFalhando
+        # Ondas terminando em falha (exceção no worker).
+        expr: increase(hdd_wave_failures_total[1h]) > 2
+        for: 5m
+        labels: {severity: warning}
+        annotations:
+          summary: "HDD: >2 ondas falharam na última hora"
+          runbook: "docs/runbooks/incidents.md#onda-falhada"
+
+      - alert: HddMergeFalhando
+        # Merge falhou ao aprovar o gate (PR não integrou apesar da aprovação).
+        expr: increase(hdd_merge_failures_total[1h]) > 0
+        for: 1m
+        labels: {severity: critical}
+        annotations:
+          summary: "HDD: merge de PR falhou após aprovação do gate"
+          runbook: "docs/runbooks/incidents.md#merge-falhado"
+
+      - alert: HddBacklogDeGates
+        # Gates pendentes acumulando — o operador não está a decidir.
+        expr: hdd_gate_backlog > 5
+        for: 30m
+        labels: {severity: warning}
+        annotations:
+          summary: "HDD: {{ $value }} gates pendentes há 30m"
+          runbook: "docs/runbooks/incidents.md#backlog-de-gates"
+
+      - alert: HddApiIndisponivel
+        # /metrics (api) sem scrape → api caída.
+        expr: up{job="hdd-api"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations:
+          summary: "HDD: api fora do ar (sem scrape há 2m)"
+          runbook: "docs/runbooks/incidents.md#api-fora-do-ar"
