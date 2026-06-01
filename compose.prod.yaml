@@ -7,14 +7,30 @@
 #   docker compose -f compose.prod.yaml up -d postgres api worker
 services:
   postgres:
-    image: pgvector/pgvector:pg17
+    # Imagem pgvector + pgBackRest (Story 6.5): WAL archiving → R2.
+    image: ${HDD_IMAGE_POSTGRES:-hdd-postgres:latest}
+    command:
+      - postgres
+      - -c
+      - archive_mode=on
+      - -c
+      - archive_command=pgbackrest --stanza=hdd archive-push %p
     environment:
       POSTGRES_USER: hdd
       POSTGRES_DB: hdd
       POSTGRES_PASSWORD_FILE: /run/secrets/hdd_postgres_password
-    secrets: [hdd_postgres_password]
+      # Endpoint (account id) e bucket via env — não-segredos, do deploy.env.
+      # As keys vêm de secrets (exportadas pelo entrypoint da imagem).
+      PGBACKREST_REPO1_S3_ENDPOINT: ${PGBACKREST_REPO1_S3_ENDPOINT:-}
+      PGBACKREST_REPO1_S3_BUCKET: ${PGBACKREST_REPO1_S3_BUCKET:-hdd-backups}
+    secrets:
+      - hdd_postgres_password
+      - hdd_r2_access_key
+      - hdd_r2_secret_key
     volumes:
       - hdd_pgdata:/var/lib/postgresql/data
+      - ./ops/pgbackrest/pgbackrest.conf:/etc/pgbackrest/pgbackrest.conf:ro
+      - hdd_pgbackrest_log:/var/log/pgbackrest
     networks: [hdd_backend]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hdd -d hdd"]
@@ -121,6 +137,7 @@ networks:
 
 volumes:
   hdd_pgdata:
+  hdd_pgbackrest_log:
 
 secrets:
   hdd_pg_dsn: {file: ./secrets/hdd_pg_dsn}
@@ -131,3 +148,5 @@ secrets:
   hdd_postgres_password: {file: ./secrets/hdd_postgres_password}
   hdd_gh_token: {file: ./secrets/hdd_gh_token}
   hdd_claude_oauth_token: {file: ./secrets/hdd_claude_oauth_token}
+  hdd_r2_access_key: {file: ./secrets/hdd_r2_access_key}    # R2 Access Key ID (Story 6.5)
+  hdd_r2_secret_key: {file: ./secrets/hdd_r2_secret_key}    # R2 Secret Access Key

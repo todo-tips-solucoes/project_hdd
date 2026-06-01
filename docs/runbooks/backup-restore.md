@@ -3,10 +3,11 @@
 Backup contínuo (WAL archiving) + base backups do Postgres para o **Cloudflare
 R2** (S3-compatível) com **pgBackRest**, e restauração point-in-time (PITR).
 
-> Estado: R2 ainda não provisionado. A config (`ops/pgbackrest/pgbackrest.conf`)
-> vem com placeholders; o **procedimento de PITR já foi testado localmente** com
-> repositório posix (`ops/pgbackrest/test-pitr.sh`, verde). Ligar à R2 é só
-> mudar `repo1-type` e as credenciais — nada do fluxo muda.
+> Estado: **R2 PROVISIONADO e validado em produção (2026-06-01, Story 6.5)** —
+> stanza-create, backup full+diff, WAL archiving e `verify` (integridade do repo)
+> todos OK contra o bucket real. O procedimento de PITR (restore) está provado
+> localmente (`ops/pgbackrest/test-pitr.sh`, posix); em produção valida-se com
+> `verify` (read-only) para não tocar a base viva.
 
 ## Componentes
 
@@ -18,37 +19,56 @@ R2** (S3-compatível) com **pgBackRest**, e restauração point-in-time (PITR).
 - **WAL archiving**: o Postgres empurra cada segmento via
   `archive_command = pgbackrest --stanza=hdd archive-push %p`.
 
-## Provisionar (quando a R2 existir)
+## Provisionar (compose — feito em produção 2026-06-01)
 
-1. **Bucket + credenciais R2** (S3 API token com leitura/escrita no bucket
-   `hdd-backups`). Anote o `R2_ACCOUNT_ID`, a Access Key e a Secret.
-2. Preencha `ops/pgbackrest/pgbackrest.conf` (endpoint/bucket) e exporte os
-   segredos no nó (Docker secret ou env):
+1. **Bucket + R2 API Token** (Object Read & Write, escopado ao bucket). Anote:
+   Account ID (→ endpoint `<id>.r2.cloudflarestorage.com`), nome do bucket,
+   Access Key ID, Secret. **Gotcha:** confirme o nome EXATO do bucket — um
+   `403 AccessDenied` no `ListObjects` quase sempre é nome/escopo errado (diagnostique
+   com `aws-cli --endpoint-url ... s3 ls s3://<bucket>/`).
+2. Escreva as keys em secrets (gitignored) e o endpoint/bucket no `deploy.env`:
    ```bash
-   export PGBACKREST_REPO1_S3_KEY=...          # R2 Access Key ID
-   export PGBACKREST_REPO1_S3_KEY_SECRET=...   # R2 Secret Access Key
+   printf '%s' "<ACCESS_KEY_ID>" > secrets/hdd_r2_access_key && chmod 644 secrets/hdd_r2_access_key
+   printf '%s' "<SECRET_KEY>"    > secrets/hdd_r2_secret_key && chmod 644 secrets/hdd_r2_secret_key
+   # deploy.env:
+   PGBACKREST_REPO1_S3_ENDPOINT=<id>.r2.cloudflarestorage.com
+   PGBACKREST_REPO1_S3_BUCKET=<bucket>
    ```
-3. No `stack.yaml`, troque a imagem do `postgres` pela buildada do Dockerfile e
-   adicione o `command` com `archive_mode=on` + `archive_command` (ver Dockerfile),
-   monte o `pgbackrest.conf` em `/etc/pgbackrest/` e injete as credenciais.
-4. Inicialize a stanza e o primeiro backup:
+   As keys vão para o ENV do `pgbackrest` via o **entrypoint** da imagem
+   (`ops/pgbackrest/postgres-entrypoint.sh`) — nunca em `docker inspect`.
+3. `compose.prod.yaml` já usa a imagem `hdd-postgres` (pgvector+pgBackRest+**ca-certificates**),
+   liga `archive_mode=on`+`archive_command`, monta o `pgbackrest.conf` e os R2 secrets.
    ```bash
-   docker exec hdd_postgres pgbackrest --stanza=hdd stanza-create
-   docker exec hdd_postgres pgbackrest --stanza=hdd check
-   docker exec hdd_postgres pgbackrest --stanza=hdd --type=full backup
+   docker build -t hdd-postgres:latest ops/pgbackrest
+   docker compose --env-file deploy.env -f compose.prod.yaml up -d --force-recreate postgres
    ```
+4. Inicialize (rode como `postgres`, exportando as keys do secret no exec):
+   ```bash
+   docker compose -f compose.prod.yaml exec -u postgres postgres sh -c '
+     export PGBACKREST_REPO1_S3_KEY=$(cat /run/secrets/hdd_r2_access_key)
+     export PGBACKREST_REPO1_S3_KEY_SECRET=$(cat /run/secrets/hdd_r2_secret_key)
+     pgbackrest --stanza=hdd stanza-create
+     pgbackrest --stanza=hdd --type=full backup
+     pgbackrest --stanza=hdd check          # valida o WAL archiving
+     pgbackrest --stanza=hdd verify'        # integridade do repo (read-only)
+   ```
+   > **Gotchas resolvidos:** (a) o role/db é `hdd`, não `postgres` → `pg1-user=hdd`/
+   > `pg1-database=hdd` no conf; (b) falta de `ca-certificates` na imagem → erro de
+   > cert TLS (instalado no Dockerfile); (c) editar o `pgbackrest.conf` bind-montado
+   > exige recriar o contêiner (inode novo).
 
-## Agendamento
+## Agendamento (ativo em produção)
 
-Backups recorrentes via cron no nó (full semanal, diferencial diário):
+`ops/pgbackrest/scheduled-backup.sh <full|diff>` invoca o pgbackrest no contêiner
+postgres (keys dos secrets, nunca em env). Cron instalado no nó:
 
 ```cron
-# /etc/cron.d/hdd-pgbackrest
-30 3 * * 0 root docker exec hdd_postgres pgbackrest --stanza=hdd --type=full backup
-30 3 * * 1-6 root docker exec hdd_postgres pgbackrest --stanza=hdd --type=diff backup
+0 3 * * 0   /var/lib/projeto_hdd/ops/pgbackrest/scheduled-backup.sh full >> /var/log/hdd-backup.log 2>&1
+0 3 * * 1-6 /var/lib/projeto_hdd/ops/pgbackrest/scheduled-backup.sh diff >> /var/log/hdd-backup.log 2>&1
 ```
 
-A retenção (`repo1-retention-full=4`) expira backups antigos automaticamente.
+Full semanal (Dom 03h) + diferencial diário (Seg–Sáb 03h). A retenção
+(`repo1-retention-full=4`) expira backups antigos automaticamente.
 
 ## Restauração point-in-time (PITR)
 
