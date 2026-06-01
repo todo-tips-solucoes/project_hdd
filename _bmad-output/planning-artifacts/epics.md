@@ -3,10 +3,14 @@ stepsCompleted: [1, 2, 3, 4]
 inputDocuments:
   - _bmad-output/planning-artifacts/prds/prd-hdd-v2.md
   - _bmad-output/planning-artifacts/architecture.md
+  - _bmad-output/implementation-artifacts/epic-5-retro-2026-06-01.md
 status: 'complete'
 completedAt: '2026-05-31'
-totalEpics: 5
-totalStories: 31
+totalEpics: 6
+totalStories: 36
+epicHistory:
+  - 'Epics 1–5 (31 histórias) — planejados 2026-05-31, implementados 31/31.'
+  - 'Epic 6 (5 histórias) — adicionado 2026-06-01 a partir da retrospectiva do Epic 5.'
 ---
 
 # projeto_hdd - Epic Breakdown
@@ -117,6 +121,10 @@ O operador observa ondas/decisões/custo em tempo real e **aprova gates de qualq
 ### Epic 5: Produção 24/7 & Conformidade
 O sistema roda continuamente na Hetzner: Docker Swarm + Caddy/TLS, CI completo, backups WAL/PITR, **quota lease global** enforçado entre workers, e conformidade LGPD (direitos do titular via crypto-shredding, retenção, transferência internacional).
 **FRs cobertos:** RF-09 (CI completo) · **AR:** 12 · **NFR:** ESC-1,2,3, LGPD-2,3, SEG-1,2,8.
+
+### Epic 6: Integração & Caminho até Produção
+Os Epics 1–5 entregaram todas as partes (31/31), mas a retrospectiva do Epic 5 revelou que "histórias prontas" ≠ "produto roda ponta a ponta": faltam três fios de integração entre E2↔E4↔E5. Este épico fecha a malha — uma feature percorre `enqueue → claude → verify → PR → gate (painel) → resume → merge` — e valida tudo em produção real na Hetzner (risco D-032). **Origem:** retrospectiva do Epic 5 (`epic-5-retro-2026-06-01.md`), não o PRD original.
+**FRs cobertos:** RF-01/RF-06 (produtor da fila), RF-03b (resume pós-gate), RF-02 (verify real) · **NFR:** ESC-3 (D-032), LGPD-2 (backup R2 em produção).
 
 ---
 
@@ -563,3 +571,82 @@ So that o sistema seja conforme.
 **When** há um pedido de exclusão
 **Then** a chave `pgcrypto` correspondente é descartada (dado torna-se irrecuperável) sem quebrar a hash-chain
 **And** políticas de retenção e a nota de transferência internacional (Hetzner UE + Anthropic US) estão documentadas
+
+---
+
+## Epic 6: Integração & Caminho até Produção
+
+Fechar a malha **E2↔E4↔E5** para que uma feature percorra `enqueue → plan/execute (claude) → verify → PR → gate (painel) → resume → merge`, e validar a stack em produção real na Hetzner (risco D-032). Origem: retrospectiva do Epic 5 (`epic-5-retro-2026-06-01.md`). Os Epics 1–5 entregaram as partes; este épico liga os três fios de integração que faltavam e leva o sistema a produção de verdade.
+
+> **Dependências:** 6.4 exige 6.1–6.3 fechadas. 6.5 é independente (infra de backup).
+> **Fora do épico (nota de conformidade, não-código):** anexar a base legal de transferência internacional (Hetzner UE + Anthropic US) ao ROPA do projeto.
+
+### Story 6.1: Produtor da fila de trabalho
+
+As a operador,
+I want que iniciar uma feature enfileire trabalho para o worker,
+So that o control plane efetivamente dispare ondas (hoje `app.work_queue` nunca é alimentada).
+
+**Acceptance Criteria:**
+
+**Given** a CLI `hdd start <task>` e/ou um endpoint da API
+**When** o operador inicia uma feature
+**Then** um item é enfileirado em `app.work_queue` com payload `{task, thread_id}` (thread_id = id da onda)
+**And** o worker o consome (claim SKIP LOCKED), adquire lease de quota e executa a onda correspondente
+**And** a sessão/onda criada (Repository) e o item da fila referenciam o mesmo `thread_id`
+
+### Story 6.2: Resume da onda após decisão de gate no painel
+
+As a operador,
+I want que aprovar/rejeitar um gate no painel retome a onda pausada,
+So that o fluxo `plan → … → gate → merge` complete (hoje o `interrupt()` do LangGraph nunca é retomado).
+
+**Acceptance Criteria:**
+
+**Given** uma onda em `AWAITING_GATE` (interrupt do orquestrador) e um gate pendente
+**When** o operador aprova/rejeita no painel (`GateStore.resolve_authenticated`)
+**Then** a onda é retomada a partir do checkpoint Postgres (`orchestrator.resume(thread_id, decisão)`)
+**And** aprovação leva a `MERGED` e rejeição a `FAILED`, com a transição auditada
+**And** nenhum efeito colateral é repetido (idempotência do checkpoint — invariante da PoC)
+
+### Story 6.3: Verificação automática real no sandbox
+
+As a desenvolvedor,
+I want que o nó `verify` rode a suíte de testes no sandbox,
+So that o loop de correção seja disparado por sinal real (hoje `verify=True` vai direto ao gate).
+
+**Acceptance Criteria:**
+
+**Given** o workspace da onda e o `SandboxRunner` endurecido (Story 2.3)
+**When** o nó `verify` executa
+**Then** a suíte de testes do projeto roda dentro do sandbox (rede `none`/allowlist, sem credenciais de produção)
+**And** `verify` retorna verdadeiro só se os testes passam; senão dispara o loop de correção (`CORRECTING`)
+**And** esgotado o teto de correções, a onda escala via gate (`ESCALATED` — comportamento existente preservado)
+
+### Story 6.4: Deploy real na Hetzner + smoke E2E + validação D-032
+
+As a DevOps,
+I want a stack rodando no VPS real com uma feature percorrida ponta a ponta,
+So that o AC do Epic 5 seja validado em produção e o risco D-032 (ToS da conta sob automação contínua) seja confirmado.
+
+**Acceptance Criteria:**
+
+**Given** DNS apontando + secrets criados (runbook de deploy) e a malha 6.1–6.3 fechada
+**When** faço `docker stack deploy` na Hetzner e inicio uma feature de teste
+**Then** o Caddy provê TLS real e a feature percorre `enqueue → claude → verify → PR rascunho → gate no painel → resume → merge`
+**And** o teto global de quota é respeitado e nenhum lease vaza ao longo do smoke
+**And** o comportamento da conta de assinatura sob execução contínua é observado e registrado (D-032: confirma viabilidade ou aciona a troca para o driver `api`)
+
+### Story 6.5: Backups em produção — provisionar R2 e ligar o archiving
+
+As a DevOps,
+I want o WAL archiving ativo apontando para a R2 real,
+So that o backup/PITR (Story 5.5) opere em produção, não só em teste local.
+
+**Acceptance Criteria:**
+
+**Given** bucket R2 + credenciais (via secret/env) e a imagem `postgres` + pgBackRest
+**When** o stack sobe com `archive_mode=on` e roda `stanza-create` + backup inicial
+**Then** os segmentos WAL e o base backup chegam à R2 e `pgbackrest check` passa
+**And** um restore PITR de teste a partir da R2 recupera o estado (procedimento do runbook)
+**And** o agendamento (full/diff) está ativo
