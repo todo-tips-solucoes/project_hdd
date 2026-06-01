@@ -18,8 +18,11 @@ from typing import Any, TypedDict
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
-from hdd.contracts.ports import LLMProvider
+from hdd.contracts.ports import LLMProvider, Vcs
 from hdd.domain import wave as wv
+from hdd.observability import get_logger
+
+log = get_logger("orchestrator")
 
 Verifier = Callable[[str], bool]
 
@@ -27,10 +30,14 @@ Verifier = Callable[[str], bool]
 class WaveGraphState(TypedDict, total=False):
     task: str
     workspace: str
+    branch: str
     wave_state: str
     plan: str
     n_corrections: int
     result: str
+    pr_url: str
+    pr_number: int
+    pr_error: str
 
 
 class WaveOrchestrator:
@@ -40,10 +47,12 @@ class WaveOrchestrator:
         verify: Verifier,
         checkpointer: Any,
         max_corrections: int = 3,
+        vcs: Vcs | None = None,
     ) -> None:
         self._llm = llm
         self._verify = verify
         self._max = max_corrections
+        self._vcs = vcs
         self._graph = self._build(checkpointer)
 
     # --- helpers -----------------------------------------------------------
@@ -70,6 +79,24 @@ class WaveOrchestrator:
         target = wv.WaveState.EXECUTING if n <= self._max else wv.WaveState.ESCALATED
         return {"n_corrections": n, "wave_state": self._to(state, target)}
 
+    async def _pr(self, state: WaveGraphState) -> dict[str, Any]:
+        """Abre o PR rascunho com as mudanças da onda antes do gate (Story 6.7).
+
+        No-op se não há VCS/branch (ex.: onda sem workspace). Falha ao abrir NÃO
+        trava a onda: segue ao gate sem PR, com o erro registrado no estado.
+        """
+        branch = state.get("branch", "")
+        if self._vcs is None or not branch:
+            return {}
+        title = f"HDD: {state.get('task', '')}"[:72]
+        body = state.get("plan", "") or "(sem plano registrado)"
+        try:
+            pr = await self._vcs.open_pr(branch, title, body)
+        except Exception as exc:  # noqa: BLE001 — degradar p/ gate sem PR, não travar
+            log.exception("orchestrator.pr_falhou", branch=branch)
+            return {"pr_error": str(exc)}
+        return {"pr_url": pr.url, "pr_number": pr.number}
+
     def _gate(self, state: WaveGraphState) -> dict[str, Any]:
         approved = bool(interrupt({"gate": "merge_deploy", "reason": "aprovar merge?"}))
         target = wv.WaveState.MERGED if approved else wv.WaveState.FAILED
@@ -85,7 +112,7 @@ class WaveOrchestrator:
     # --- roteamento --------------------------------------------------------
     def _after_verify(self, state: WaveGraphState) -> str:
         is_gate = wv.WaveState(state["wave_state"]) == wv.WaveState.AWAITING_GATE
-        return "gate" if is_gate else "correct"
+        return "pr" if is_gate else "correct"  # aprovado → abre PR antes do gate (6.7)
 
     def _after_correct(self, state: WaveGraphState) -> str:
         is_exec = wv.WaveState(state["wave_state"]) == wv.WaveState.EXECUTING
@@ -97,29 +124,32 @@ class WaveOrchestrator:
         g.add_node("execute", self._execute)
         g.add_node("verify", self._verify_node)
         g.add_node("correct", self._correct)
+        g.add_node("pr", self._pr)
         g.add_node("gate", self._gate)
         g.add_node("escalate", self._escalate)
         g.add_edge(START, "plan")
         g.add_edge("plan", "execute")
         g.add_edge("execute", "verify")
         g.add_conditional_edges(
-            "verify", self._after_verify, {"gate": "gate", "correct": "correct"}
+            "verify", self._after_verify, {"pr": "pr", "correct": "correct"}
         )
         g.add_conditional_edges(
             "correct", self._after_correct, {"execute": "execute", "escalate": "escalate"}
         )
+        g.add_edge("pr", "gate")  # PR rascunho aberto, depois o gate humano (6.7)
         g.add_edge("gate", END)
         g.add_edge("escalate", END)
         return g.compile(checkpointer=checkpointer)
 
     # --- API ---------------------------------------------------------------
     async def run_wave(
-        self, thread_id: str, task: str, workspace: str = ""
+        self, thread_id: str, task: str, workspace: str = "", branch: str = ""
     ) -> dict[str, Any]:
         cfg: dict[str, Any] = {"configurable": {"thread_id": thread_id}}
         init: WaveGraphState = {
             "task": task,
             "workspace": workspace,
+            "branch": branch,
             "wave_state": str(wv.WaveState.PLANNED),
             "n_corrections": 0,
         }

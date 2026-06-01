@@ -21,6 +21,7 @@ from hdd.adapters.llm.subscription import (
     ClaudeSubscriptionProvider,
 )
 from hdd.adapters.orchestrator.wave import Verifier, WaveOrchestrator
+from hdd.adapters.vcs import GitHubVcs
 from hdd.config.settings import Settings
 
 
@@ -44,6 +45,10 @@ async def open_orchestrator(
     provider = ClaudeSubscriptionProvider(
         model=settings.model, cwd=workspace or None, disallowed_tools=disallowed
     )
+    # Com workspace, o nó `pr` (Story 6.7) abre o PR rascunho a partir do clone.
+    vcs = GitHubVcs(workspace) if workspace else None
     async with AsyncPostgresSaver.from_conn_string(settings.pg_dsn) as checkpointer:
         await checkpointer.setup()
-        yield WaveOrchestrator(provider, verify=verify, checkpointer=checkpointer)
+        yield WaveOrchestrator(
+            provider, verify=verify, checkpointer=checkpointer, vcs=vcs
+        )

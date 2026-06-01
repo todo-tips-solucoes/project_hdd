@@ -26,6 +26,11 @@ def _default_runner(cmd: list[str]) -> None:
     subprocess.run(cmd, check=True, capture_output=True, text=True)
 
 
+def wave_branch(wave_id: str) -> str:
+    """Nome da branch da onda — convenção partilhada (provisioner + nó de PR, 6.7)."""
+    return f"hdd/wave-{wave_id}"
+
+
 class WorkspaceProvisioner:
     def __init__(
         self,
@@ -42,7 +47,7 @@ class WorkspaceProvisioner:
         self._base.mkdir(parents=True, exist_ok=True)
         path = str(self._base / f"hdd-wave-{wave_id}")
         self._run(["git", "clone", "--depth", "1", self._repo_url, path])
-        self._run(["git", "-C", path, "checkout", "-b", f"hdd/wave-{wave_id}"])
+        self._run(["git", "-C", path, "checkout", "-b", wave_branch(wave_id)])
         return path
 
     def cleanup(self, path: str) -> None:

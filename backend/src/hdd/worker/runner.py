@@ -27,7 +27,7 @@ from hdd.adapters.db.gate_store import GateStore
 from hdd.adapters.db.repository import Repository
 from hdd.adapters.orchestrator.factory import open_orchestrator
 from hdd.adapters.sandbox.verifier import make_sandbox_verifier
-from hdd.adapters.workspace import WorkspaceProvisioner
+from hdd.adapters.workspace import WorkspaceProvisioner, wave_branch
 from hdd.config.settings import Settings
 from hdd.domain import wave as wv
 from hdd.domain.capability import GateType
@@ -48,7 +48,9 @@ async def bridge_after_wave(
     state = wv.WaveState(raw)
     await repo.sync_wave_state(thread_id, state)
     if state is wv.WaveState.AWAITING_GATE:
-        await gate_store.open_gate(thread_id, GateType.MERGE_DEPLOY, "aprovar merge?")
+        pr_url = str(result.get("pr_url", ""))
+        reason = f"aprovar merge — PR {pr_url}" if pr_url else "aprovar merge?"
+        await gate_store.open_gate(thread_id, GateType.MERGE_DEPLOY, reason)
 
 
 def build_wave_runner(settings: Settings) -> WaveRunner:
@@ -67,11 +69,14 @@ def build_wave_runner(settings: Settings) -> WaveRunner:
         # Sem repo_url configurado não há provisionamento (workspace=""): o
         # execute roda sem write e o verify defere ao gate (comportamento pré-6.6).
         workspace = provisioner.provision(thread_id) if settings.repo_url else ""
+        branch = wave_branch(thread_id) if workspace else ""
         try:
             async with open_orchestrator(
                 settings, verify=verify, workspace=workspace, allow_write=bool(workspace)
             ) as orchestrator:
-                result = await orchestrator.run_wave(thread_id, task, workspace=workspace)
+                result = await orchestrator.run_wave(
+                    thread_id, task, workspace=workspace, branch=branch
+                )
             await bridge_after_wave(repo, gate_store, thread_id, result)
         finally:
             if workspace:
