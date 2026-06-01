@@ -43,6 +43,10 @@ class GitHubVcs:
         # checkout da branch ao montar o workspace; `-b` falharia ("already exists").
         self._git("checkout", "-B", branch)
         self._git("add", "-A")
+        # Sem diff (o execute/claude não mudou nada) não há PR a abrir — sinaliza
+        # de forma clara em vez do `git commit` falhar com "nothing to commit".
+        if not self._git("status", "--porcelain").strip():
+            raise ValueError("sem mudanças no workspace — nada a submeter")
         # Identidade explícita do bot: o clone efêmero (e o worker uid 10001) não
         # têm git config — sem isto o commit falha ("unable to auto-detect email").
         self._git(

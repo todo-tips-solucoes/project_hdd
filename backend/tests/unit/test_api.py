@@ -15,6 +15,7 @@ from fastapi.testclient import TestClient
 from hdd.adapters.db.gate_store import GateDetail
 from hdd.api.app import create_app
 from hdd.api.deps import (
+    ResumeOutcome,
     get_audit,
     get_gate_store,
     get_notifications,
@@ -87,9 +88,9 @@ class FakeInbox:
         return self._already
 
 
-async def _fake_resume(thread_id: str, approve: bool) -> str:
+async def _fake_resume(thread_id: str, approve: bool) -> ResumeOutcome:
     """Stub do resume pós-gate: o checkpoint avança para merged/failed (sem quota)."""
-    return "merged" if approve else "failed"
+    return ResumeOutcome("merged" if approve else "failed")
 
 
 def _pending_detail() -> GateDetail:
@@ -204,6 +205,32 @@ def test_decisao_idempotente_nao_reemite() -> None:
     assert resp["status"] == "approved"
     assert audit.events == []
     assert repo.transitions == []  # gate terminal → nada retomado/reemitido
+
+
+def test_merge_falho_audita_error_raised() -> None:
+    """Merge falho no resume → além do GATE_APPROVED, audita ERROR_RAISED (Story 6.4)."""
+    repo = FakeRepo()
+    audit = FakeAudit()
+
+    async def resume_com_falha(thread_id: str, approve: bool) -> ResumeOutcome:
+        return ResumeOutcome("merged", merge_error="merge bloqueado por checks")
+
+    app = create_app()
+    app.dependency_overrides[require_user] = lambda: User(login="alice")
+    app.dependency_overrides[get_gate_store] = lambda: FakeGateStore(
+        _pending_detail(), GateStatus.APPROVED
+    )
+    app.dependency_overrides[get_audit] = lambda: audit
+    app.dependency_overrides[get_repository] = lambda: repo
+    app.dependency_overrides[get_notifications] = lambda: NotificationService(
+        FakeNotifier(), "http://painel"
+    )
+    app.dependency_overrides[get_wave_resumer] = lambda: resume_com_falha
+    with TestClient(app) as c:
+        resp = c.post("/api/gates/g1/approve").json()
+    assert resp["status"] == "approved"
+    assert len(audit.events) == 2  # decisão (GATE_APPROVED) + erro (ERROR_RAISED)
+    assert repo.transitions == [("w1", "merged")]  # ainda projeta merged
 
 
 def test_gate_inexistente_404() -> None:

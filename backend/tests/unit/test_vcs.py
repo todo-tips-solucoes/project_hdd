@@ -1,6 +1,8 @@
 """Story 2.8 — GitHubVcs (runner mockado, sem rede)."""
 from __future__ import annotations
 
+import pytest
+
 from hdd.adapters.vcs import GitHubVcs
 from hdd.contracts.ports import Vcs
 
@@ -14,7 +16,11 @@ async def test_open_pr_cria_draft_e_parseia_numero():
 
     def runner(cmd: list[str]) -> str:
         calls.append(cmd)
-        return "https://github.com/o/r/pull/42\n" if cmd[0] == "gh" else ""
+        if cmd[0] == "gh":
+            return "https://github.com/o/r/pull/42\n"
+        if "status" in cmd:
+            return " M README.md\n"  # há diff a submeter
+        return ""
 
     vcs = GitHubVcs("/repo", runner)
     pr = await vcs.open_pr("feature/x", "título", "corpo")
@@ -29,6 +35,15 @@ async def test_open_pr_cria_draft_e_parseia_numero():
     commit = next(c for c in calls if "commit" in c)
     assert "user.email=hdd-bot@todo-tips.com" in commit  # identidade explícita do bot
     assert any("push" in c for c in calls)  # publicou
+
+
+async def test_open_pr_sem_diff_levanta_erro_claro():
+    # status --porcelain vazio = o execute não mudou nada → nada a submeter.
+    def runner(cmd: list[str]) -> str:
+        return "" if cmd[0] != "gh" else "https://github.com/o/r/pull/1\n"
+
+    with pytest.raises(ValueError, match="sem mudanças"):
+        await GitHubVcs("/repo", runner).open_pr("b", "t", "corpo")
 
 
 async def test_merge_pr_ready_depois_squash_com_repo_slug():
