@@ -9,11 +9,11 @@ services:
   postgres:
     # Imagem pgvector + pgBackRest (Story 6.5): WAL archiving → R2.
     image: ${HDD_IMAGE_POSTGRES:-hdd-postgres:latest}
-    # Limites de memória (mitigação OOM 2026-06-02): cgroup contém o blast radius
-    # por stack. Teto rígido + reserva leve. shared_buffers default (128M) + cache
-    # cabem em 2G com folga; um pico não pode mais derrubar o host inteiro.
-    mem_limit: 2g
-    mem_reservation: 512m
+    # Limites de memória (mitigação OOM 2026-06-02; dimensionados p/ VPS dedicada
+    # 16 GB, 2026-06-02): cgroup contém o blast radius por stack. shared_buffers
+    # default (128M) + cache cabem em 3G com folga; um pico não derruba o host.
+    mem_limit: 3g
+    mem_reservation: 1g
     command:
       - postgres
       - -c
@@ -70,9 +70,9 @@ services:
       - sh
       - -c
       - exec uvicorn hdd.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers --forwarded-allow-ips='*'
-    # Servidor uvicorn single-process; 768M dá folga p/ picos de request.
-    mem_limit: 768m
-    mem_reservation: 256m
+    # Servidor uvicorn single-process; 1G dá folga p/ picos de request.
+    mem_limit: 1g
+    mem_reservation: 512m
     environment:
       HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
       HDD_REPO_SLUG: ${HDD_REPO_SLUG:-}
@@ -114,13 +114,13 @@ services:
     image: ${HDD_IMAGE_WORKER:-hdd-worker:latest}
     # ⚠️ Serviço mais pesado: hospeda os `claude -p` (pico de RSS ~1.5-1.7G cada).
     # O teto DEVE comportar `app.quota_counter.max_concurrent` × pico + overhead.
-    # 3g cobre max_concurrent=1 com folga (e 2 apertado). Se max_concurrent subir,
-    # reavaliar este teto OU mover o worker p/ uma VM dedicada (ver correct-course).
+    # Na VPS dedicada de 16 GB (2026-06-02), 6g cobre max_concurrent=2 com folga
+    # — resolve a decisão aberta do correct-course (worker em VM dedicada).
     # Com o swap de 4G + swappiness=10 do host, estouros transitórios degradam em
     # vez de matar; se o cgroup estourar, mata só DENTRO do worker (a onda falha e
     # `restart: unless-stopped` recupera) — blast radius contido, host preservado.
-    mem_limit: 3g
-    mem_reservation: 512m
+    mem_limit: 6g
+    mem_reservation: 1g
     environment:
       HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
       HDD_MODEL: ${HDD_MODEL:-}
@@ -152,8 +152,8 @@ services:
   frontend:
     image: ${HDD_IMAGE_FRONTEND:-hdd-frontend:latest}
     # Next.js standalone — servidor leve de assets/SSR.
-    mem_limit: 512m
-    mem_reservation: 128m
+    mem_limit: 768m
+    mem_reservation: 256m
     networks: [hdd_edge]
     restart: unless-stopped
     labels:
