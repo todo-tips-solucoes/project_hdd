@@ -1,0 +1,2 @@
+# acme.json contém o certificado + a chave privada e a chave da conta ACME — NUNCA versionar.
+acme/
