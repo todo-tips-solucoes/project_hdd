@@ -44,6 +44,7 @@ async def open_orchestrator(
     disallowed = WORKSPACE_DISALLOWED if allow_write else DEFAULT_DISALLOWED
     provider = ClaudeSubscriptionProvider(
         model=settings.model,
+        timeout=settings.claude_timeout_s,
         cwd=workspace or None,
         disallowed_tools=disallowed,
         # Modo workspace: auto-aceita edições (senão o claude -p não escreve nada).

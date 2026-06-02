@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     llm_driver: Literal["subscription", "api"] = "subscription"
     model: str | None = None
     log_level: str = "INFO"
+    # Timeout (s) de cada invocação `claude -p`. O claude é um agente completo
+    # (lê o repo, planeja, edita) — 120s é curto para ondas reais (achado da
+    # Story 7.4). Configurável via HDD_CLAUDE_TIMEOUT_S.
+    claude_timeout_s: int = 600
 
     # --- Epic 6: verificação automática no sandbox (Story 6.3) -------------
     # Suíte de testes do projeto rodada no sandbox endurecido; passa só se exit 0.
