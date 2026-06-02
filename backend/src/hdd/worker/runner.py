@@ -31,7 +31,7 @@ from hdd.adapters.workspace import WorkspaceProvisioner, wave_branch
 from hdd.config.settings import Settings
 from hdd.domain import wave as wv
 from hdd.domain.capability import GateType
-from hdd.observability.metrics import gate_convocations
+from hdd.observability.metrics import gate_convocations, wave_corrections, wave_outcomes
 from hdd.worker.loop import WaveRunner
 
 
@@ -48,7 +48,12 @@ async def bridge_after_wave(
         return
     state = wv.WaveState(raw)
     await repo.sync_wave_state(thread_id, state)
+    # Harness de dogfood (7.1): correções por onda + desfecho da execução autônoma.
+    # Conta-se aqui (lado worker), NÃO no resume — o resume é a decisão humana, não
+    # capacidade autônoma (evita dupla contagem com gates.py).
+    wave_corrections.observe(int(result.get("n_corrections", 0)))
     if state is wv.WaveState.AWAITING_GATE:
+        wave_outcomes.labels(outcome="reached_gate").inc()  # sucesso autônomo (H-A)
         pr_url = str(result.get("pr_url", ""))
         pr_error = str(result.get("pr_error", ""))
         if pr_url:
@@ -59,6 +64,8 @@ async def bridge_after_wave(
             reason = "aprovar merge?"
         await gate_store.open_gate(thread_id, GateType.MERGE_DEPLOY, reason)
         gate_convocations.labels(gate_type=str(GateType.MERGE_DEPLOY)).inc()
+    elif state is wv.WaveState.ESCALATED:
+        wave_outcomes.labels(outcome="escalated").inc()  # não conseguiu sozinha (H-A)
 
 
 def build_wave_runner(settings: Settings) -> WaveRunner:

@@ -16,11 +16,14 @@ from collections.abc import Awaitable, Callable
 from pathlib import Path
 from typing import Protocol
 
+from hdd.domain.errors import QuotaExhausted
 from hdd.observability import get_logger
 from hdd.observability.metrics import (
     quota_acquisitions,
+    quota_limit_hits,
     wave_duration,
     wave_failures,
+    wave_outcomes,
 )
 
 log = get_logger("worker")
@@ -84,8 +87,18 @@ class WorkerLoop:
             await self._run_wave(work_id, payload)
             await self._queue.complete(work_id)
             log.info("worker.onda_concluida", work_id=work_id)
+        except QuotaExhausted:
+            # Limite REAL da conta (D-032) — NÃO é falha de capacidade: não conta
+            # p/ wave_failures (manteria a taxa de falha de H-A enganosa). Hoje a
+            # onda ainda é marcada failed na fila (não há pausa-e-retoma — gap
+            # conhecido; ver docs/dogfood-harness.md).
+            quota_limit_hits.inc()
+            wave_outcomes.labels(outcome="quota_hit").inc()
+            await self._queue.fail(work_id)
+            log.warning("worker.onda_quota", work_id=work_id)
         except Exception:
             wave_failures.inc()  # sinal p/ alerta de taxa de falha de ondas
+            wave_outcomes.labels(outcome="failed").inc()
             await self._queue.fail(work_id)
             log.exception("worker.onda_falhou", work_id=work_id)
         finally:
