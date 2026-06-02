@@ -23,6 +23,7 @@ from typing import Any
 
 from hdd.adapters.audit.sink import AuditSink
 from hdd.adapters.db import make_engine, make_sessionmaker
+from hdd.adapters.db.gap_store import GapStore
 from hdd.adapters.db.gate_store import GateStore
 from hdd.adapters.db.repository import Repository
 from hdd.adapters.orchestrator.factory import open_orchestrator
@@ -31,12 +32,30 @@ from hdd.adapters.workspace import WorkspaceProvisioner, wave_branch
 from hdd.config.settings import Settings
 from hdd.domain import wave as wv
 from hdd.domain.capability import GateType
+from hdd.domain.errors import QuotaExhausted
+from hdd.observability import get_logger
 from hdd.observability.metrics import gate_convocations, wave_corrections, wave_outcomes
 from hdd.worker.loop import WaveRunner
 
+log = get_logger("worker")
+
+
+async def _safe_record_gap(
+    gap_store: GapStore, wave_id: str | None, stage: str, reason: str
+) -> None:
+    """Registra um gap em best-effort: nunca mascara a exceção original da onda."""
+    try:
+        await gap_store.record_gap(wave_id, stage, reason)
+    except Exception:  # noqa: BLE001 — registro de gap é observabilidade, não crítico
+        log.exception("dogfood.gap_record_falhou", wave_id=wave_id, stage=stage)
+
 
 async def bridge_after_wave(
-    repo: Repository, gate_store: GateStore, thread_id: str, result: dict[str, Any]
+    repo: Repository,
+    gate_store: GateStore,
+    thread_id: str,
+    result: dict[str, Any],
+    gap_store: GapStore | None = None,
 ) -> None:
     """Projeta o resultado da onda (checkpoint = SoT) para o estado observável.
 
@@ -66,12 +85,20 @@ async def bridge_after_wave(
         gate_convocations.labels(gate_type=str(GateType.MERGE_DEPLOY)).inc()
     elif state is wv.WaveState.ESCALATED:
         wave_outcomes.labels(outcome="escalated").inc()  # não conseguiu sozinha (H-A)
+        if gap_store is not None:  # gap→backlog (7.2): escalada vira aprendizado
+            await _safe_record_gap(
+                gap_store,
+                thread_id,
+                "escalation",
+                f"loop de correção esgotou N ({result.get('n_corrections', 0)}) — onda escalada",
+            )
 
 
 def build_wave_runner(settings: Settings) -> WaveRunner:
     sm = make_sessionmaker(make_engine(settings.pg_dsn))
     repo = Repository(sm, AuditSink(sm))
     gate_store = GateStore(sm)
+    gap_store = GapStore(sm)  # Story 7.2: loop gaps→backlog do dogfood
     verify = make_sandbox_verifier(settings)  # Story 6.3: testes reais no sandbox
     provisioner = WorkspaceProvisioner(  # Story 6.6: clone efêmero por onda
         settings.repo_url, base_dir=settings.workspace_root or None
@@ -92,7 +119,14 @@ def build_wave_runner(settings: Settings) -> WaveRunner:
                 result = await orchestrator.run_wave(
                     thread_id, task, workspace=workspace, branch=branch
                 )
-            await bridge_after_wave(repo, gate_store, thread_id, result)
+            await bridge_after_wave(repo, gate_store, thread_id, result, gap_store=gap_store)
+        except QuotaExhausted as exc:
+            # gap→backlog (7.2): limite da conta interrompeu a onda (D-032).
+            await _safe_record_gap(gap_store, thread_id, "quota", f"limite da conta: {exc}")
+            raise  # o loop contabiliza quota_limit_hits e marca a fila
+        except Exception as exc:
+            await _safe_record_gap(gap_store, thread_id, "failure", f"exceção na onda: {exc}")
+            raise  # o loop contabiliza wave_failures e marca a fila
         finally:
             if workspace:
                 provisioner.cleanup(workspace)

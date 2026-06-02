@@ -5,6 +5,7 @@ from datetime import datetime
 
 import uuid_utils
 from sqlalchemy import DateTime, ForeignKey, Integer, String, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -65,6 +66,27 @@ class GateRow(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+
+class DogfoodGapRow(Base):
+    """Gap de dogfood (Story 7.2): aprendizado que o dogfood gera (escalada,
+    falha, quota) e que realimenta o backlog. `wave_id` é nulo nos gaps seed
+    (pré-identificados, sem onda de origem)."""
+
+    __tablename__ = "dogfood_gaps"
+    __table_args__ = {"schema": "app"}
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid7)
+    wave_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    # stage ∈ escalation | failure | quota | preexisting
+    stage: Mapped[str] = mapped_column(String, nullable=False)
+    reason: Mapped[str] = mapped_column(String, nullable=False)
+    context: Mapped[dict[str, object]] = mapped_column(JSONB, nullable=False, default=dict)
+    # status ∈ open | triaged | converted | dismissed
+    status: Mapped[str] = mapped_column(String, nullable=False, default="open")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 # app.work_queue e app.quota_counter são manipuladas por SQL direto

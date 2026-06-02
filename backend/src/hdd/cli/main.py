@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from hdd.adapters.audit.sink import AuditSink
 from hdd.adapters.db import make_engine, make_sessionmaker
+from hdd.adapters.db.gap_store import GapDetail, GapStore, gaps_to_markdown
 from hdd.adapters.db.gate_store import GateStore
 from hdd.adapters.db.queue import WorkQueue
 from hdd.adapters.db.repository import Repository
@@ -122,6 +123,28 @@ def forget(subject_id: str) -> None:
         typer.echo(f"titular {subject_id}: chave descartada — dados irrecuperáveis")
     else:
         typer.echo(f"titular {subject_id}: nada a descartar (sem chave)")
+
+
+@app.command()
+def gaps(
+    status: str = typer.Option("", help="filtra por status: open|triaged|converted|dismissed"),
+    md: bool = typer.Option(False, "--md", help="exporta markdown (candidatos a story)"),
+) -> None:
+    """Lista os gaps de dogfood (Story 7.2) ou exporta como markdown para o backlog."""
+
+    async def _go() -> list[GapDetail]:
+        return await GapStore(_sessionmaker()).list_gaps(status or None)
+
+    items = asyncio.run(_go())
+    if md:
+        typer.echo(gaps_to_markdown(items))
+        return
+    if not items:
+        typer.echo("(sem gaps)")
+        return
+    for g in items:
+        origem = g.wave_id or "pré-identificado"
+        typer.echo(f"{g.id}  [{g.stage}/{g.status}]  {origem}  {g.reason[:80]}")
 
 
 def main() -> None:
