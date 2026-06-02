@@ -1,0 +1,29 @@
+http:
+  routers:
+    hdd-api:
+      rule: "Host(`hdd.todo-tips.com`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || PathPrefix(`/webhooks`) || PathPrefix(`/healthz`) || PathPrefix(`/readyz`) || PathPrefix(`/metrics`) || PathPrefix(`/docs`) || PathPrefix(`/openapi.json`))"
+      entryPoints: [websecure]
+      service: hdd-api
+      priority: 100
+      tls: {certResolver: leresolver}
+    hdd-fe:
+      rule: "Host(`hdd.todo-tips.com`)"
+      entryPoints: [websecure]
+      service: hdd-fe
+      priority: 1
+      tls: {certResolver: leresolver}
+    hdd-api-http:
+      rule: "Host(`hdd.todo-tips.com`)"
+      entryPoints: [web]
+      service: hdd-api
+      middlewares: [hdd-https]
+  middlewares:
+    hdd-https:
+      redirectScheme: {scheme: https}
+  services:
+    hdd-api:
+      loadBalancer:
+        servers: [{url: "http://projeto_hdd-api-1:8000"}]
+    hdd-fe:
+      loadBalancer:
+        servers: [{url: "http://projeto_hdd-frontend-1:3000"}]

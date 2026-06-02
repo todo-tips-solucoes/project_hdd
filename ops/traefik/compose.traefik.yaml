@@ -1,0 +1,32 @@
+# Ingress da VPS dedicada (migração Boston 2026-06-02).
+#
+# Usa o FILE PROVIDER (rotas em ./dynamic/), NÃO o docker provider: o Traefik v3.3
+# não negocia a API com o Docker 29.x (cai no fallback 1.24, recusado) e, mais
+# importante, assim o Traefik fica SEM acesso ao docker.sock — superfície menor.
+#
+# As rotas em dynamic/hdd.yml apontam para os serviços por nome de container
+# (projeto_hdd-api-1 / -frontend-1) na rede hdd_edge (criada pelo compose.prod.yaml).
+#
+#   docker compose -f ops/traefik/compose.traefik.yaml up -d
+services:
+  traefik:
+    image: traefik:v3.3
+    command:
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.leresolver.acme.email=paulo@todo-tips.com
+      - --certificatesresolvers.leresolver.acme.storage=/acme/acme.json
+      - --certificatesresolvers.leresolver.acme.httpchallenge=true
+      - --certificatesresolvers.leresolver.acme.httpchallenge.entrypoint=web
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./acme:/acme              # acme.json (cert + chave) — gitignored
+      - ./dynamic:/etc/traefik/dynamic:ro
+    networks: [hdd_edge]
+    restart: unless-stopped
+networks:
+  hdd_edge:
+    external: true
+    name: hdd_edge
