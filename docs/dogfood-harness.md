@@ -60,6 +60,22 @@ Descobertos por verificação adversarial contra o código (2026-06-02):
 2. **A detecção de limite é binária e frágil** — pattern-match de 5 strings em stderr
    (`adapters/llm/subscription.py`). Quebra se a Anthropic mudar a mensagem.
 
+## Loop gaps → backlog (Story 7.2)
+
+Cada **escalada**, **falha** ou **hit de quota** de uma onda vira um *gap* estruturado
+e persistido em `app.dogfood_gaps` — o aprendizado do dogfood realimenta o backlog
+(fecha o ciclo da meta-tese), em vez de se perder.
+
+- **Captura automática** (`worker/runner.py`): `escalation` em `bridge_after_wave`
+  (onda escalou); `failure`/`quota` no `run_wave` (exceção/`QuotaExhausted`). O registro
+  é *best-effort* — nunca mascara a exceção original da onda.
+- **Persistência** (`adapters/db/gap_store.py` + migration `0010`): `GapStore.record_gap`/
+  `list_gaps`; campos `stage` · `reason` · `context` (jsonb) · `status`
+  (`open|triaged|converted|dismissed`).
+- **Export / listagem** (CLI): `hdd gaps` lista; `hdd gaps --md` exporta markdown
+  (candidatos a story); `--status` filtra. A retrospectiva (Story 7.10) consome essa lista.
+- **Seed**: a migration `0010` semeia os 3 gaps pré-identificados (abaixo), idempotente.
+
 ## Gaps descobertos (backlog — alimentam a Story 7.2 / seed de meta-ondas)
 
 1. **Pausa-e-retoma de quota não existe.** `QuotaExhausted` hoje **falha a onda**
