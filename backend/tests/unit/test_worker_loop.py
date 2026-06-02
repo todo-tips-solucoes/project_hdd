@@ -1,6 +1,7 @@
 """Story 5.2 — controle de fluxo do WorkerLoop (fakes, sem Postgres/quota)."""
 from __future__ import annotations
 
+from hdd.domain.errors import QuotaExhausted
 from hdd.observability.metrics import REGISTRY
 from hdd.worker.loop import WorkerLoop
 
@@ -121,3 +122,33 @@ async def test_metricas_quota_e_falha_incrementam():
 
     await WorkerLoop(FakeQueue([("w", "p")]), FakeQuota(1), boom, "t").run_once()
     assert _sample("hdd_wave_failures_total") == base_fail + 1
+
+
+# --- Story 7.1: harness de dogfood — desfechos no worker --------------------
+
+async def test_quota_hit_nao_conta_como_falha_de_capacidade():
+    """Limite real da conta (D-032): incrementa quota_limit_hits e outcome=quota_hit,
+    mas NÃO wave_failures (senão a taxa de falha de H-A fica enganosa)."""
+    base_hits = _sample("hdd_quota_limit_hits_total")
+    base_fail = _sample("hdd_wave_failures_total")
+    base_qhit = _sample("hdd_wave_outcomes_total", outcome="quota_hit")
+
+    async def quota(work_id: str, payload: str) -> None:
+        raise QuotaExhausted("limite da conta")
+
+    q = FakeQueue([("w", "p")])
+    assert await WorkerLoop(q, FakeQuota(1), quota, "t").run_once() == "done"
+    assert q.failed == ["w"]  # sem pausa-e-retoma ainda: a fila marca failed (gap)
+    assert _sample("hdd_quota_limit_hits_total") == base_hits + 1
+    assert _sample("hdd_wave_outcomes_total", outcome="quota_hit") == base_qhit + 1
+    assert _sample("hdd_wave_failures_total") == base_fail  # quota ≠ falha
+
+
+async def test_falha_generica_conta_outcome_failed():
+    base = _sample("hdd_wave_outcomes_total", outcome="failed")
+
+    async def boom(work_id: str, payload: str) -> None:
+        raise RuntimeError("x")
+
+    await WorkerLoop(FakeQueue([("w", "p")]), FakeQuota(1), boom, "t").run_once()
+    assert _sample("hdd_wave_outcomes_total", outcome="failed") == base + 1

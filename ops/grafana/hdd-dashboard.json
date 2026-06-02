@@ -36,6 +36,54 @@
       "title": "Sessões iniciadas",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
       "targets": [{ "expr": "hdd_sessions_started_total" }]
+    },
+    {
+      "id": 5,
+      "type": "row",
+      "title": "Dogfood (Epic 7) — capacidade & D-032",
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 16 }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Taxa de sucesso autônomo (H-A)",
+      "description": "Ondas que chegaram ao gate de merge sozinhas / total de ondas executadas, no período selecionado.",
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 17 },
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 } },
+      "targets": [
+        {
+          "expr": "sum(increase(hdd_wave_outcomes_total{outcome=\"reached_gate\"}[$__range])) / clamp_min(sum(increase(hdd_wave_outcomes_total[$__range])), 1)"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Desfechos da onda (por tipo)",
+      "description": "reached_gate (autônomo) | escalated | failed | quota_hit.",
+      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 17 },
+      "targets": [
+        { "expr": "sum by (outcome) (increase(hdd_wave_outcomes_total[$__range]))" }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "histogram",
+      "title": "Correções por onda",
+      "description": "Distribuição de ciclos de correção (verify reprovado) por onda.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 },
+      "targets": [{ "expr": "hdd_wave_corrections_bucket" }]
+    },
+    {
+      "id": 9,
+      "type": "timeseries",
+      "title": "Pressão de quota: limite da conta vs teto interno",
+      "description": "hits do limite REAL da conta (D-032) vs no_quota (teto interno de slots — NÃO é a conta).",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 25 },
+      "targets": [
+        { "expr": "sum(increase(hdd_quota_limit_hits_total[$__range]))", "legendFormat": "limite da conta (D-032)" },
+        { "expr": "sum(increase(hdd_quota_acquisitions_total{result=\"no_quota\"}[$__range]))", "legendFormat": "teto interno (slots)" }
+      ]
     }
   ]
 }

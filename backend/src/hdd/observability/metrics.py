@@ -1,4 +1,15 @@
-"""Métricas Prometheus (Story 3.5) — RED + métricas de negócio do HDD."""
+"""Métricas Prometheus (Story 3.5) — RED + métricas de negócio do HDD.
+
+Harness de dogfood (Story 7.1): além das métricas-base, expõe os sinais que
+provam a **hipótese H-A (capacidade)** — desfecho da execução autônoma e
+correções por onda — e instrumentam a **salvaguarda D-032** — hits do limite
+REAL da conta.
+
+⚠️ **Limite do driver `subscription`:** `claude -p` NÃO emite tokens/custo/
+proximidade-de-limite. Só é possível medir SLOTS internos, HITS de limite
+(binário) e wallclock. Medição real de consumo (tokens/custo) só com o driver
+`api` (RF-12, Epic 8). Ver `docs/dogfood-harness.md`.
+"""
 from __future__ import annotations
 
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
@@ -40,6 +51,34 @@ merge_failures = Counter(
 gate_backlog = Gauge(
     "hdd_gate_backlog",
     "Gates pendentes de decisão (atualizado ao listar no painel).",
+    registry=REGISTRY,
+)
+
+# --- Harness de dogfood (Story 7.1) ------------------------------------------
+# Métricas primárias de CAPACIDADE (H-A): desfecho da execução AUTÔNOMA de uma
+# onda (antes da decisão humana de gate) e nº de correções. A taxa de sucesso
+# autônomo deriva de reached_gate / total.
+wave_outcomes = Counter(
+    "hdd_wave_outcomes_total",
+    "Desfecho da execução autônoma de uma onda (antes da decisão humana). "
+    "reached_gate=chegou ao gate de merge (sucesso autônomo) | escalated=loop de "
+    "correção esgotou N | failed=exceção no worker | quota_hit=limite real da conta.",
+    ["outcome"],
+    registry=REGISTRY,
+)
+wave_corrections = Histogram(
+    "hdd_wave_corrections",
+    "Ciclos de correção (verify reprovado) por onda.",
+    buckets=(0, 1, 2, 3, 5),
+    registry=REGISTRY,
+)
+# Salvaguarda D-032: hit do limite REAL da conta. DISTINTO de
+# hdd_quota_acquisitions_total{result=no_quota}, que é o teto INTERNO de slots
+# concorrentes (max_concurrent), não a conta. NÃO confundir os dois.
+quota_limit_hits = Counter(
+    "hdd_quota_limit_hits_total",
+    "Hits do limite real da conta Claude (QuotaExhausted via claude -p) — "
+    "distinto de no_quota (teto interno de slots).",
     registry=REGISTRY,
 )
 
