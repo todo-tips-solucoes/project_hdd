@@ -126,6 +126,10 @@ O sistema roda continuamente na Hetzner: Docker Swarm + Caddy/TLS, CI completo, 
 Os Epics 1–5 entregaram todas as partes (31/31), mas a retrospectiva do Epic 5 revelou que "histórias prontas" ≠ "produto roda ponta a ponta": faltam três fios de integração entre E2↔E4↔E5. Este épico fecha a malha — uma feature percorre `enqueue → claude → verify → PR → gate (painel) → resume → merge` — e valida tudo em produção real na Hetzner (risco D-032). **Origem:** retrospectiva do Epic 5 (`epic-5-retro-2026-06-01.md`), não o PRD original.
 **FRs cobertos:** RF-01/RF-06 (produtor da fila), RF-03b (resume pós-gate), RF-02 (verify real) · **NFR:** ESC-3 (D-032), LGPD-2 (backup R2 em produção).
 
+### Epic 7: Dogfooding Real & Harness de Medição
+Com o produto rodando ponta a ponta em produção (Epics 1–6), o HDD passa a **construir features reais** — de forma **faseada** (repo-alvo separado → meta-dogfood no próprio `projeto_hdd`) e **instrumentada**: cada onda mede taxa de sucesso autônomo, correções e consumo de quota (**D-032**), e cada escalada/falha vira backlog. Prova a tese de externalização de contexto na prática e expõe os gaps reais que orientam o Epic 8. **Origem:** decisão de direção 2026-06-02 (`epic-7-scope-proposal.md`), candidata #5 do roadmap; não o PRD original.
+**FRs cobertos:** RF-01/RF-06 (uso real do pipeline), RF-03b (gate humano em cada merge), RF-02 (verify real sob features genuínas) · **NFR:** ESC-3 (medição de D-032 sob uso contínuo), MANT-3 (observabilidade/harness).
+
 ---
 
 ## Epic 1: Fundação & Gate de Prova de Conceito
@@ -760,3 +764,155 @@ So that o ciclo completo (iniciar → gate → aprovar) seja todo pelo painel.
 **Then** o painel chama `POST /api/features` e mostra a onda criada no dashboard
 **And** validação/feedback de erro (tarefa vazia, falha da API)
 **And** os tipos TS vêm do OpenAPI versionado (sem drift)
+
+## Epic 7: Dogfooding Real & Harness de Medição
+
+Com o produto em produção (Epics 1–6), o HDD passa a **construir features reais** e a **medir-se** ao fazê-lo. Faseado: **(F1)** calibração num **repo-alvo separado** de baixo risco e **(F2)** **meta-dogfood** no próprio `projeto_hdd` (via PR + gate humano). Origem: decisão de direção 2026-06-02 — ver `epic-7-scope-proposal.md` (escopo com a íntegra das decisões + análise adversarial). Não implementar sem este planejamento aprovado.
+
+> **Hipótese primária (a falsificar) — H-A Capacidade:** "o HDD leva features reais de ponta a ponta com humano só nos 6 gates RF-03b". É o pré-requisito da meta-tese de externalização ([[externalisation-thesis]]); externalização (H-B) e viabilidade de quota (H-C) são secundárias (observadas, não decisivas para o GO).
+> **Dependências:** 7.1/7.2 (harness) primeiro · 7.3→7.4→7.5→7.6 sequencial (F1) · **7.6 GO** bloqueia 7.7/7.8/7.9 (F2) · 7.10 por último.
+> **Salvaguardas (invariantes):** (1) **sem auto-deploy** — o HDD abre PR, o **merge exige gate humano** e o deploy continua manual; nunca toca `compose.prod.yaml`/`secrets`/`deploy.env`. (2) **Workspace efêmero sempre** (clone por onda, 6.6); dev isolado com `-p hdd_dev`. (3) **D-032 é sinal de parada** — se a cadência ameaçar a conta Max, pausa-se e aciona-se a conversa do driver `api` (Epic 8). (4) Tooling verde + revisão humana antes de cada merge.
+
+### Story 7.1: Harness de métricas de dogfood
+
+> **Revisado pós-investigação (2026-06-02):** o `claude -p` (`subscription`) **não emite tokens/custo/proximidade-de-limite** — `LlmResult` só tem `text/session_id/exit_code/raw`; a detecção de limite é pattern-match de 5 strings em stderr (`subscription.py`). O `quota_lease` conta **slots de concorrência internos** (`max_concurrent=2`), **não** uso da conta. A métrica de D-032 é reformulada como *pressão de quota observável*; medir tokens/custo só com o driver `api` (Epic 8).
+
+As a operador,
+I want métricas por onda que provem a **hipótese de capacidade (H-A)** e instrumentem a salvaguarda D-032,
+So that o GO da 7.6 seja fundamentado em dados, não em anedota.
+
+**Acceptance Criteria:**
+
+**Given** a observabilidade do Epic 3 (Prometheus/OTel) e ondas executando
+**When** uma onda de dogfood completa (ou escala)
+**Then** registram-se as **métricas primárias de capacidade (H-A)**: taxa de sucesso autônomo (% ondas ao gate sem `ESCALATED`), nº de correções/onda, nº de escaladas e **nº de intervenções fora do gate** (ação humana que não seja a decisão do gate)
+**And** registram-se as **métricas de salvaguarda D-032 (sinais reais)**: nº de *hits* de limite (`QuotaExhausted`), **tempo acumulado em `PAUSED_QUOTA`** + tempo até retomar, e duração wallclock (já existente)
+**And** o harness **não confunde** `no_quota` (teto interno de slots) com limite da conta Max — rótulos distintos
+**And** existe um relatório/painel consolidando as métricas por período, reusando a stack existente; a impossibilidade de medir tokens/custo no `subscription` é documentada (aponta para o driver `api`)
+
+### Story 7.2: Loop gaps → backlog
+
+As a operador,
+I want que cada escalada/falha/correção-repetida vire um registro de "gap" estruturado,
+So that o aprendizado do dogfood realimente o backlog (fecha o ciclo da meta-tese).
+
+**Acceptance Criteria:**
+
+**Given** uma onda que escala (`ESCALATED`), falha, ou excede um limiar de correções
+**When** o evento ocorre
+**Then** um "gap" é registrado com contexto (onda, etapa, motivo, trecho de auditoria)
+**And** o gap é exportável como candidato a story (issue/markdown) — não é descartado
+**And** os gaps são listáveis para a retrospectiva (Story 7.10)
+**And** o backlog já nasce semeado com os **gaps pré-identificados** na análise de 2026-06-02: (1) bug `quota_exhausted` sempre `False` em `LlmResult` — candidato a meta-onda; (2) detecção de quota frágil (pattern-match) — endurecer; (3) pausa de quota cega (`PAUSED_QUOTA` não sabe quando libera)
+
+### Story 7.3: Preparar repo-alvo de calibração (fase 1)
+
+As a operador,
+I want um repo-alvo separado real-o-suficiente (com suíte de testes que dê sinal de `verify`),
+So that a fase 1 calibre o pipeline sem risco de auto-modificação.
+
+**Acceptance Criteria:**
+
+**Given** a decisão: **projeto novo dedicado** (default: utilitário Python com pytest — casa com o `verify` default `pytest -q`; domínio concreto a confirmar no início da story)
+**When** o repo é criado/configurado e registrado como destino de ondas
+**Then** ele tem uma suíte de testes que falha/passa de forma observável (sinal real para `verify`)
+**And** o HDD consegue cloná-lo, abrir PR e (com gate) mergear — fluxo 6.6→6.8 validado nele
+**And** **não** é o `hdd-smoke-test` trivial (precisa de features de verdade a construir)
+
+### Story 7.4: Onda de calibração nível 1 — feature trivial (baseline)
+
+As a operador,
+I want o HDD construir uma feature simples no repo-alvo,
+So that eu meça o baseline do caminho feliz (sucesso sem correção).
+
+**Acceptance Criteria:**
+
+**Given** o repo-alvo (7.3) e o harness (7.1)
+**When** inicio uma feature pequena e bem-especificada pelo painel
+**Then** a onda percorre `enqueue → claude → verify → PR → gate → merge` com métricas capturadas
+**And** o resultado (sucesso/correções/quota) fica registrado no harness
+
+### Story 7.5: Onda de calibração nível 2 — feature que exige correção
+
+As a operador,
+I want o HDD construir uma feature cuja primeira tentativa provavelmente falha o `verify`,
+So that eu exercite o loop real `verify → CORRECTING → gate` e meça a recuperação.
+
+**Acceptance Criteria:**
+
+**Given** o repo-alvo (7.3) e o harness (7.1)
+**When** inicio uma feature com requisito testável não-trivial
+**Then** o `verify` dispara ≥1 ciclo de correção (sinal real, não placeholder)
+**And** o harness registra correções, e gaps (se houver escalada) entram no loop (7.2)
+
+### Story 7.6: Gate de calibração — decisão GO/NO-GO para a fase 2
+
+As a operador,
+I want avaliar as métricas da fase 1 antes de deixar o HDD tocar a si próprio,
+So that a fase 2 (meta) só comece com confiança operacional fundamentada em dados.
+
+**Acceptance Criteria:**
+
+**Given** as métricas de 7.4/7.5 no harness **e** as 2 pré-condições de prontidão verdes (abaixo)
+**When** reviso a calibração (gate humano, análogo ao gate de fundação 1.1)
+**Then** decido **GO** — critério **qualitativo informado por métricas**, ancorado em **H-A**: ≥1 onda completa **sem intervenção fora do gate** **e** pressão de quota sustentável (tempo em `PAUSED_QUOTA` tolerável) — ou **NO-GO** (registrar gaps, ajustar, repetir)
+**And** a decisão e a justificativa ficam auditadas
+
+> **Pré-condições de prontidão do meta-dogfood (bloqueiam a F2 — achado da análise de composição 2026-06-02):**
+> **PC-1 contenção testada** — teste de invariante provando que um Write com *path absoluto* fora do workspace falha (fecha o risco *soft* do ADR 0002, crítico porque o HDD passa a modificar o próprio HDD na máquina de produção).
+> **PC-2 sem auto-deploy verificado** — auditoria do CI/Actions e do `compose.prod.yaml` confirmando que nenhum webhook/job redeploya a stack no merge (a salvaguarda "deploy manual" passa de premissa a fato).
+
+### Story 7.7: Meta-onda 1 — dívida conhecida de baixo risco (worker multi-arch)
+
+As a desenvolvedor,
+I want o HDD fechar uma dívida conhecida e isolada do próprio HDD (**worker multi-arch**, dívida nº 7 das retros),
+So that a primeira meta-onda seja pequena, de valor claro e baixo raio de impacto.
+
+**Acceptance Criteria:**
+
+**Given** GO na calibração (7.6) e workspace efêmero do próprio repo
+**When** inicio a feature pelo painel
+**Then** o HDD abre PR no `projeto_hdd` tornando a imagem do worker multi-arch e os testes passam no `verify`
+**And** **eu** reviso e aprovo o merge no gate (sem auto-deploy — salvaguarda 1)
+**And** as métricas e gaps são capturados
+
+### Story 7.8: Meta-onda 2 — indicadores do harness no painel
+
+As a operador,
+I want o HDD construir a exibição das métricas de dogfood (7.1) no painel,
+So that o dogfood exercite uma feature de produto real e feche o loop visual da medição.
+
+**Acceptance Criteria:**
+
+**Given** GO na calibração, a meta-onda 1 (7.7) concluída e as métricas de 7.1
+**When** inicio a feature pelo painel
+**Then** a onda entrega os indicadores de dogfood no painel via PR + gate humano (tipos TS sem drift)
+**And** as próprias métricas e gaps da onda são capturados (dogfood medindo dogfood)
+
+### Story 7.9: Pool de meta-ondas adicionais (just-in-time)
+
+As a operador,
+I want um pool de alvos meta especificados sob demanda (melhoria de UX do painel + nova capacidade de produto),
+So that o dogfood continue enquanto o orçamento de quota e o GO se mantiverem, sem comprometer 4 features pesadas de uma vez sob D-032.
+
+**Acceptance Criteria:**
+
+**Given** GO mantido (7.6) e folga de quota observada no harness
+**When** escolho o próximo alvo do pool (melhoria de UX do painel **ou** nova capacidade)
+**Then** a feature é especificada just-in-time e percorre o pipeline via PR + gate humano
+**And** se o harness sinalizar D-032 em risco, o pool **pausa** (salvaguarda 3) em vez de drenar a conta
+**And** cada onda do pool alimenta métricas (7.1) e gaps (7.2)
+
+### Story 7.10: Retrospectiva de dogfood + atualização de backlog
+
+As a operador,
+I want consolidar o aprendizado do dogfood ao final do épico,
+So that a próxima direção (escala / módulos / docs) seja decidida com dados reais.
+
+**Acceptance Criteria:**
+
+**Given** as métricas (7.1) e os gaps (7.2) acumulados
+**When** facilito a retrospectiva (padrão do projeto: `epic-7-retro-*.md`)
+**Then** os gaps viram backlog priorizado
+**And** a viabilidade de D-032 sob uso real é recomputada (segue/aciona driver `api`)
+**And** registra-se a recomendação de direção para o Epic 8
