@@ -10,7 +10,7 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from hdd.adapters.orchestrator import WaveOrchestrator
 from hdd.adapters.sandbox.runner import SandboxConfig, SandboxResult
-from hdd.adapters.sandbox.verifier import make_sandbox_verifier
+from hdd.adapters.sandbox.verifier import make_sandbox_codegen, make_sandbox_verifier
 from hdd.config.settings import Settings
 from hdd.contracts.dtos import LlmResult
 
@@ -102,3 +102,48 @@ def test_verify_sem_oracle_nao_monta_volume() -> None:
     make_sandbox_verifier(settings, runner=runner)("/ws")
     _, cfg = runner.calls[0]
     assert cfg.oracle_dir is None
+
+
+# --- make_sandbox_codegen --------------------------------------------------
+
+
+def test_codegen_roda_command_no_sandbox() -> None:
+    runner = FakeRunner(0)
+    settings = Settings(
+        codegen_command="make generate", sandbox_image="img", sandbox_network="none"
+    )
+    assert make_sandbox_codegen(settings, runner=runner)("/ws") == (True, "")
+    command, cfg = runner.calls[0]
+    assert command == ["make", "generate"]
+    assert cfg.workspace == "/ws"
+    assert cfg.image == "img"
+    assert cfg.network == "none"
+
+
+def test_codegen_exit0_retorna_true() -> None:
+    assert make_sandbox_codegen(
+        Settings(codegen_command="cmd"), runner=FakeRunner(0)
+    )("/ws") == (True, "")
+
+
+def test_codegen_exit1_retorna_false_com_feedback() -> None:
+    ok, output = make_sandbox_codegen(
+        Settings(codegen_command="cmd"), runner=FakeRunner(1)
+    )("/ws")
+    assert ok is False
+    assert output == "outerr"  # stdout + stderr (diferente do verifier: stderr+stdout)
+
+
+def test_codegen_sem_workspace_defere() -> None:
+    runner = FakeRunner(1)  # exit 1 não importa: não deve rodar
+    assert make_sandbox_codegen(
+        Settings(codegen_command="cmd"), runner=runner
+    )("") == (True, "")
+    assert runner.calls == []
+
+
+def test_codegen_falha_de_execucao_dispara_correcao() -> None:
+    ok, _ = make_sandbox_codegen(
+        Settings(codegen_command="cmd"), runner=FakeRunner(boom=True)
+    )("/ws")
+    assert ok is False

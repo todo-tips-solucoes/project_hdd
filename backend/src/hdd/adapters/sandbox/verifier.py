@@ -52,3 +52,31 @@ def make_sandbox_verifier(
         return (True, "") if ok else (False, result.stderr + result.stdout)
 
     return verify
+
+
+def make_sandbox_codegen(
+    settings: Settings, runner: SandboxRunner | None = None
+) -> Callable[[str], tuple[bool, str]]:
+    sandbox = runner or SandboxRunner()
+    command = shlex.split(settings.codegen_command)
+
+    def codegen(workspace: str) -> tuple[bool, str]:
+        if not workspace:
+            log.warning("codegen.sem_workspace")
+            return (True, "")
+        cfg = SandboxConfig(
+            workspace=workspace,
+            image=settings.sandbox_image,
+            network=settings.sandbox_network,
+            oracle_dir=settings.oracle_dir,
+        )
+        try:
+            result = sandbox.run(command, cfg)
+        except Exception:
+            log.exception("codegen.sandbox_falhou", workspace=workspace)
+            return (False, "")
+        ok = result.exit_code == 0
+        log.info("codegen.concluido", workspace=workspace, exit_code=result.exit_code, ok=ok)
+        return (True, "") if ok else (False, result.stdout + result.stderr)
+
+    return codegen
