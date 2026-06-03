@@ -81,3 +81,14 @@ class InboundMessage(BaseModel):
 
 class WebhookAck(BaseModel):
     status: str
+
+
+class HarnessSummary(BaseModel):
+    total_waves: int
+    by_state: dict[str, int]
+    total_corrections: int
+    mean_corrections: float
+    reached_gate: int
+    escalated: int
+    failed: int
+    gates_pending: int

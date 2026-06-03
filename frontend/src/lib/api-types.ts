@@ -157,6 +157,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/harness": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Harness */
+        get: operations["get_harness_api_harness_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/events/stream": {
         parameters: {
             query?: never;
@@ -313,6 +330,27 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HarnessSummary */
+        HarnessSummary: {
+            /** Total Waves */
+            total_waves: number;
+            /** By State */
+            by_state: {
+                [key: string]: number;
+            };
+            /** Total Corrections */
+            total_corrections: number;
+            /** Mean Corrections */
+            mean_corrections: number;
+            /** Reached Gate */
+            reached_gate: number;
+            /** Escalated */
+            escalated: number;
+            /** Failed */
+            failed: number;
+            /** Gates Pending */
+            gates_pending: number;
         };
         /** SessionOut */
         SessionOut: {
@@ -572,6 +610,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WavesSnapshot"];
+                };
+            };
+        };
+    };
+    get_harness_api_harness_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HarnessSummary"];
                 };
             };
         };

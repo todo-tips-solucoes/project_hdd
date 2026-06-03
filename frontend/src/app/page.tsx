@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/AppShell";
 import { EventFeed } from "@/components/EventFeed";
+import { HarnessIndicators } from "@/components/HarnessIndicators";
 import { StartFeature } from "@/components/StartFeature";
 import { WaveBoard } from "@/components/WaveBoard";
 
@@ -8,6 +9,7 @@ export default function DashboardPage() {
     <AppShell>
       <div className="grid gap-5 lg:grid-cols-[1fr_22rem]">
         <div className="flex flex-col gap-5">
+          <HarnessIndicators />
           <StartFeature />
           <WaveBoard />
         </div>

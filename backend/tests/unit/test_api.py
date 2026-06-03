@@ -306,3 +306,61 @@ def test_notification_service_deep_link() -> None:
     notifier = FakeNotifier()
     svc = NotificationService(notifier, "http://painel/")
     assert svc.gate_link("g1") == "http://painel/gates/g1"
+
+
+# --- harness --------------------------------------------------------------
+def test_harness_caso_normal() -> None:
+    class _Repo:
+        async def list_waves(self) -> list[tuple[str, str, str, int]]:
+            return [
+                ("w1", "s1", "awaiting_gate", 2),
+                ("w2", "s1", "merged", 1),
+                ("w3", "s1", "failed", 0),
+            ]
+
+        async def count_pending_gates(self) -> int:
+            return 5
+
+    app = create_app()
+    app.dependency_overrides[require_user] = lambda: User(login="op")
+    app.dependency_overrides[get_repository] = lambda: _Repo()
+    with TestClient(app) as c:
+        body = c.get("/api/harness").json()
+
+    assert body["total_waves"] == 3
+    assert body["total_corrections"] == 3
+    assert abs(body["mean_corrections"] - 1.0) < 1e-9
+    assert body["reached_gate"] == 2
+    assert body["escalated"] == 0
+    assert body["failed"] == 1
+    assert body["gates_pending"] == 5
+    assert body["by_state"]["awaiting_gate"] == 1
+    assert body["by_state"]["merged"] == 1
+    assert body["by_state"]["failed"] == 1
+    assert body["by_state"]["planned"] == 0
+
+
+def test_harness_caso_vazio() -> None:
+    class _Repo:
+        async def list_waves(self) -> list[tuple[str, str, str, int]]:
+            return []
+
+        async def count_pending_gates(self) -> int:
+            return 0
+
+    app = create_app()
+    app.dependency_overrides[require_user] = lambda: User(login="op")
+    app.dependency_overrides[get_repository] = lambda: _Repo()
+    with TestClient(app) as c:
+        body = c.get("/api/harness").json()
+
+    assert body["total_waves"] == 0
+    assert body["mean_corrections"] == 0.0
+    assert body["total_corrections"] == 0
+    assert all(v == 0 for v in body["by_state"].values())
+    assert body["gates_pending"] == 0
+
+
+def test_harness_exige_sessao() -> None:
+    with TestClient(create_app()) as c:
+        assert c.get("/api/harness").status_code == 401
