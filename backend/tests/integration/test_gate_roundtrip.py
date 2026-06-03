@@ -80,7 +80,7 @@ async def test_resume_apos_decisao_retoma_a_onda_e_projeta_estado(
     async with AsyncPostgresSaver.from_conn_string(dsn) as cp:
         await cp.setup()
         out = await WaveOrchestrator(
-            _FakeLLM(), verify=lambda _ws: True, checkpointer=cp
+            _FakeLLM(), verify=lambda _ws: (True, ""), checkpointer=cp
         ).run_wave(wid, "round-trip do gate")
     assert out["wave_state"] == str(WaveState.AWAITING_GATE)
 
@@ -93,7 +93,7 @@ async def test_resume_apos_decisao_retoma_a_onda_e_projeta_estado(
         async with AsyncPostgresSaver.from_conn_string(dsn) as cp2:
             await cp2.setup()
             result = await WaveOrchestrator(
-                _FakeLLM(), verify=lambda _ws: True, checkpointer=cp2
+                _FakeLLM(), verify=lambda _ws: (True, ""), checkpointer=cp2
             ).resume(thread_id, decision)
         return ResumeOutcome(str(result.get("wave_state", "")))
 
