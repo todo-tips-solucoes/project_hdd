@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # Rede do sandbox de verificação: "none" (deny-all) por padrão — testes não
     # devem precisar de egress; relaxar só via proxy allowlist se necessário.
     sandbox_network: str = "none"
+    # Dir com fixtures privadas montado read-only em /oracle apenas no verify.
+    # None → sem mount (retrocompatível). Env: HDD_ORACLE_DIR.
+    oracle_dir: str | None = None
 
     # --- Epic 6: provisionamento de workspace da onda (Story 6.6) ----------
     # Repo-alvo clonado num dir efêmero por onda. Vazio → sem workspace (o

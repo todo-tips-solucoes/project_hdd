@@ -25,6 +25,7 @@ class SandboxConfig:
     pids_limit: int = 256
     timeout: int = 120
     extra_args: tuple[str, ...] = field(default_factory=tuple)
+    oracle_dir: str | None = None  # montado em /oracle:ro apenas no nó verify
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class SandboxResult:
 
 class SandboxRunner:
     def _docker_cmd(self, command: list[str], cfg: SandboxConfig) -> list[str]:
+        oracle_args = ["-v", f"{cfg.oracle_dir}:/oracle:ro"] if cfg.oracle_dir is not None else []
         return [
             "docker", "run", "--rm",
             "--user", cfg.user,
@@ -49,6 +51,7 @@ class SandboxRunner:
             "-v", f"{cfg.workspace}:/workspace:rw",
             "-w", "/workspace",
             *cfg.extra_args,
+            *oracle_args,
             cfg.image,
             *command,
         ]

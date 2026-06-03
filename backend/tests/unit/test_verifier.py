@@ -74,3 +74,19 @@ async def test_orquestrador_com_verify_aprovado_vai_ao_gate() -> None:
     orch = WaveOrchestrator(FakeLLM(), verify=verify, checkpointer=MemorySaver())
     out = await orch.run_wave("wv-green", "tarefa", workspace="/ws")
     assert out["wave_state"] == "awaiting_gate"  # aprovado → gate humano de merge
+
+
+def test_verify_propaga_oracle_dir_para_config() -> None:
+    runner = FakeRunner(0)
+    settings = Settings(oracle_dir="/secrets/oracle", sandbox_image="img")
+    make_sandbox_verifier(settings, runner=runner)("/ws")
+    _, cfg = runner.calls[0]
+    assert cfg.oracle_dir == "/secrets/oracle"
+
+
+def test_verify_sem_oracle_nao_monta_volume() -> None:
+    runner = FakeRunner(0)
+    settings = Settings(sandbox_image="img")  # oracle_dir omitido → None
+    make_sandbox_verifier(settings, runner=runner)("/ws")
+    _, cfg = runner.calls[0]
+    assert cfg.oracle_dir is None

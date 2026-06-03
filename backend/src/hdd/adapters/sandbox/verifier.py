@@ -39,6 +39,7 @@ def make_sandbox_verifier(
             workspace=workspace,
             image=settings.sandbox_image,
             network=settings.sandbox_network,
+            oracle_dir=settings.oracle_dir,
         )
         try:
             result = sandbox.run(command, cfg)
