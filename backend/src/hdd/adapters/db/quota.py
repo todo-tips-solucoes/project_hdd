@@ -111,3 +111,14 @@ class QuotaLease:
                 {"m": value},
             )
             await s.commit()
+
+    async def current_max(self) -> int:
+        """Teto configurado (app.quota_counter.max_concurrent). Espelho de set_max."""
+        async with self._sm() as s:
+            return int(
+                (
+                    await s.execute(
+                        text("SELECT max_concurrent FROM app.quota_counter WHERE id = 1")
+                    )
+                ).scalar_one()
+            )

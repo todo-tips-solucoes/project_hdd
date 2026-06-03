@@ -140,3 +140,40 @@ def test_markdown_inclui_motivo_meta_e_refs():
 
 def test_markdown_vazio():
     assert "Nenhum gap" in gaps_to_markdown([])
+
+
+# --- Correct-course OOM: pré-flight de capacidade do calibration_wave -----------
+
+def _load_calibration_wave():
+    import importlib.util
+
+    path = Path(__file__).resolve().parents[2] / "scripts" / "calibration_wave.py"
+    spec = importlib.util.spec_from_file_location("calibration_wave", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_capacidade_segura_nao_tem_violacoes():
+    cw = _load_calibration_wave()
+    # swap ativo, 4 GiB de folga, max_concurrent=1 → seguro.
+    assert cw.evaluate_capacity(4 * 1024 * 1024, 4 * 1024 * 1024, 1) == []
+
+
+def test_capacidade_sem_swap_viola():
+    cw = _load_calibration_wave()
+    v = cw.evaluate_capacity(0, 4 * 1024 * 1024, 1)
+    assert any("swap" in m for m in v)
+
+
+def test_capacidade_max_concurrent_alto_viola():
+    cw = _load_calibration_wave()
+    v = cw.evaluate_capacity(4 * 1024 * 1024, 4 * 1024 * 1024, 2)
+    assert any("max_concurrent" in m for m in v)
+
+
+def test_capacidade_ram_baixa_viola():
+    cw = _load_calibration_wave()
+    v = cw.evaluate_capacity(4 * 1024 * 1024, 256 * 1024, 1)  # 256 MiB de folga
+    assert any("MemAvailable" in m for m in v)

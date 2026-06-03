@@ -19,6 +19,9 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from hdd.adapters.audit.sink import AuditSink
 from hdd.adapters.db import make_engine, make_sessionmaker
@@ -53,11 +56,80 @@ def _print_metrics() -> None:
     )
 
 
+# --- Pré-flight de capacidade (correct-course OOM 2026-06-02, gate verificável) ---
+# Salvaguarda do Epic 7: o `claude -p` do worker tem pico de RSS ~1.5-1.7 G; rodar o
+# driver-no-host junto com worker-dev e prod numa máquina sem folga foi o que causou o
+# OOM. Recusamos rodar a calibração sem as pré-condições mínimas. Ver
+# docs/decisions/0005-capacidade-e-cutover-vps-dedicada.md e docs/dogfood-calibragem.md.
+
+MIN_MEM_AVAILABLE_KB = 2 * 1024 * 1024  # 2 GiB de folga mínima
+SKIP_ENV = "HDD_CALIB_SKIP_PREFLIGHT"
+
+
+def evaluate_capacity(
+    swap_total_kb: int, mem_available_kb: int, max_concurrent: int
+) -> list[str]:
+    """Pura/testável: retorna as violações de capacidade (vazio = seguro)."""
+    violations: list[str] = []
+    if swap_total_kb <= 0:
+        violations.append("swap inativo (SwapTotal=0) — habilite swap antes de calibrar")
+    if max_concurrent != 1:
+        violations.append(
+            f"app.quota_counter.max_concurrent={max_concurrent} (esperado 1 nesta máquina)"
+        )
+    if mem_available_kb < MIN_MEM_AVAILABLE_KB:
+        violations.append(
+            f"MemAvailable={mem_available_kb} kB < {MIN_MEM_AVAILABLE_KB} kB de folga mínima "
+            "(driver-no-host + worker-dev + prod competindo é o cenário do incidente)"
+        )
+    return violations
+
+
+def _read_meminfo() -> tuple[int, int]:
+    """(SwapTotal_kB, MemAvailable_kB) lidos de /proc/meminfo (Linux)."""
+    swap_total = mem_available = 0
+    try:
+        with open("/proc/meminfo", encoding="ascii") as fh:
+            for line in fh:
+                if line.startswith("SwapTotal:"):
+                    swap_total = int(line.split()[1])
+                elif line.startswith("MemAvailable:"):
+                    mem_available = int(line.split()[1])
+    except OSError:
+        pass
+    return swap_total, mem_available
+
+
+async def _preflight_capacity(sm: async_sessionmaker[AsyncSession]) -> None:
+    swap_total, mem_available = _read_meminfo()
+    max_concurrent = await QuotaLease(sm).current_max()
+    violations = evaluate_capacity(swap_total, mem_available, max_concurrent)
+    if not violations:
+        print(
+            f"  pré-flight de capacidade OK: swap={swap_total // 1024}MB "
+            f"mem_avail={mem_available // 1024}MB max_concurrent={max_concurrent}"
+        )
+        return
+    msg = "pré-flight de capacidade FALHOU:\n  - " + "\n  - ".join(violations)
+    if os.getenv(SKIP_ENV) == "1":
+        print(f"⚠️  {msg}")
+        print(
+            f"⚠️  {SKIP_ENV}=1 — prosseguindo SOB RISCO DECLARADO (possível OOM). "
+            "Este é o atalho com custo explícito; o default seguro recusaria."
+        )
+        return
+    raise SystemExit(
+        f"{msg}\n\nCorrija (swap on / max_concurrent=1 / liberar RAM) ou, "
+        f"assumindo o custo, rode com {SKIP_ENV}=1."
+    )
+
+
 async def cmd_run(task: str) -> None:
     settings = get_settings()
     if not settings.repo_url:
         raise SystemExit("HDD_REPO_URL vazio — configure o repo-alvo de calibração")
     sm = make_sessionmaker(make_engine(settings.pg_dsn))
+    await _preflight_capacity(sm)
     repo = Repository(sm, AuditSink(sm))
     sid = await repo.create_session(task)
     await repo.set_session_state(sid, SessionState.RUNNING)

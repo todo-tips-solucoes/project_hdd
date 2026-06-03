@@ -119,4 +119,5 @@ Use a persona ao invocar a skill correspondente — eles esperam ser tratados pe
 - **Não edite arquivos sob `_bmad/` (exceto `_bmad/custom/`)** — serão sobrescritos no próximo `npx bmad-method install`.
 - **Não duplique skills.** Se faltar funcionalidade, use o **BMad Builder (`bmb`)** — skills `bmad-agent-builder`, `bmad-workflow-builder`, `bmad-module-builder` — para criar uma nova; o output vai para `skills/`.
 - **Comece pelo `bmad-help`** quando incerto sobre a próxima skill.
+- **Definition of Done & padrão de decisão:** ver `docs/definition-of-done.md` — em toda decisão, recomende por default a alternativa com melhor prática de desenvolvimento + segurança + escalabilidade (justificada nos 3 eixos); atalho só com custo declarado; salvaguarda sempre como gate verificável.
 - **`documentos/Solução OpenClaw BIMED.docx`** é a fonte de contexto original (em PT, com referências `[1]`–`[12]`); use como entrada para `bmad-product-brief` ou `bmad-prd` se quiser materializar a proposta em PRD formal.
