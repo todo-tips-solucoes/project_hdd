@@ -1,6 +1,11 @@
-# Story 7.8: Meta-onda 1 (Fase 2) — verify com oracle oculto (testes não visíveis ao execute)
+# Story 7.9: Meta-onda 1 (Fase 2) — verify com oracle oculto (testes não visíveis ao execute)
 
-Status: ready-for-dev
+Status: blocked
+
+> **Bloqueada pela Story 7.8** (meta-sandbox + worker in-container). Renumerada de 7.8 → 7.9:
+> a análise de 2026-06-03 mostrou que dirigir qualquer meta-onda no `projeto_hdd` exige
+> primeiro um sandbox capaz de rodar a suíte do backend (ver Debug Log). O pré-requisito
+> virou a Story 7.8.
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -68,6 +73,13 @@ so that eu valide o pipeline de auto-modificação (Fase 2) num alvo real **e** 
 ### Agent Model Used
 
 ### Debug Log References
+
+**HALT — pré-requisitos de execução ausentes (2026-06-03), antes de gastar quota:**
+- ❌ **Sandbox incapaz de rodar a suíte do projeto_hdd:** `hdd-sandbox:latest` = Python 3.11 + pytest, **sem uv/sqlalchemy/langgraph** (feito p/ o repo calibragem, funções puras). A suíte do projeto_hdd precisa de Python 3.13 + uv + deps do backend; sandbox é `--network none` (sem install runtime). → precisa de **imagem de meta-sandbox** (deps embutidas, sem credenciais).
+- ❌ **Worker de prod aponta p/ outro repo:** `HDD_REPO_URL=hdd-smoke-test`, `HDD_VERIFY_COMMAND=true` (no-op). Não configurado p/ meta-dogfood do projeto_hdd.
+- ✅ Produtor existe (`hdd start` → `WorkQueue.enqueue`, `cli/main.py:33`).
+- **Recursão:** o meta-sandbox NÃO pode ser construído por uma meta-onda (ela precisaria do meta-sandbox p/ verificar) → é infra a construir **direto pelo dev** (Dockerfile + build + config do worker in-container), sem quota/onda.
+- **Achado de dogfood (gap p/ 7.2):** o harness de meta-dogfood pressupunha um sandbox universal; na prática só servia para repos sem dependências. Pré-requisito real exposto antes do 1º uso.
 
 ### Completion Notes List
 

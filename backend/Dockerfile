@@ -94,3 +94,28 @@ USER 10001:10001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD python -c "import os,sys,time; p='/tmp/hdd-worker.alive'; sys.exit(0 if os.path.exists(p) and time.time()-os.path.getmtime(p) < 90 else 1)"
 CMD ["python", "-m", "hdd.worker"]
+
+# --- meta-sandbox -----------------------------------------------------------
+# Sandbox do nó `verify` para o META-DOGFOOD (Fase 2, Story 7.8): roda a suíte do
+# PRÓPRIO projeto_hdd. Diferente de sandbox/Dockerfile (calibração, minimal), tem
+# Python 3.13 + uv + as deps do backend INCLUINDO dev (pytest). SEM credenciais.
+# O venv fica em /deps (fora de /workspace, onde o clone da onda é montado em
+# runtime). O projeto NÃO é instalado (--no-install-project): o código vem do
+# /workspace montado (pythonpath=src do pyproject). ⚠️ A imagem carrega as deps DA
+# BUILD: uma onda que adicione dependência nova exige rebuild desta imagem.
+#   docker build -t hdd-meta-sandbox:latest --target meta-sandbox backend
+FROM python:${PYTHON_VERSION}-slim-bookworm AS meta-sandbox
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=0 \
+    PATH="/deps/.venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1
+WORKDIR /deps
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --frozen --no-install-project
+RUN useradd --uid 10001 --create-home sandbox
+USER 10001:10001
+WORKDIR /workspace
