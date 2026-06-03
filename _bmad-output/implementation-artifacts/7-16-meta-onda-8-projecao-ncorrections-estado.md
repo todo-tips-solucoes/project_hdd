@@ -35,11 +35,10 @@ de inspecionar o checkpointer do LangGraph.
 
 - [x] **Task 0 — Setup (sem quota).** `compose.meta.onda8.yaml` (verify = DoD completo; sem oracle;
   timeout 1200). Worker com F2. Sem rebuild.
-- [ ] **Task 1 — Subir stack + pré-flight (sem quota).**
-- [ ] **Task 2 — Disparar — PARAR p/ confirmação do operador antes (quota).**
-- [ ] **Task 3 — Gate humano** (DoD no branch **+ CI completo verde incl. Integração**; `gh pr ready`;
-  merge **sem --admin**; PARAR antes do merge).
-- [ ] **Task 4 — Registrar** (`docs/dogfood-meta.md` Meta-onda 8 + esta story). Descer o stack.
+- [x] **Task 1 — Subir stack + pré-flight (sem quota).** pré-flight verde: swap 4095MB · MemAvailable ~13GB · max_concurrent=1.
+- [x] **Task 2 — Disparar — confirmação recebida; onda `019e8ea4-d99e` enfileirada.**
+- [x] **Task 3 — Gate humano.** CI completo verde incl. Integração (Postgres+pgvector → pass); merged **sem `--admin`** → PR #34 → `a9d9486`.
+- [x] **Task 4 — Registrar** (`docs/dogfood-meta.md` Meta-onda 8 ✓ em `e75fb37`). Stack dev descido.
 
 ## Dev Notes
 

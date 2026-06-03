@@ -1,0 +1,19 @@
+# Override da META-ONDA 9 (Epic 7, Fase 2 — Story 7.17).
+#
+# Adiciona `meta-sandbox` ao job `docker-build` do CI + Makefile com
+# `rebuild-meta-sandbox`. Action item #7 da retro do Epic 7.
+#
+# verify = DoD COMPLETO (como as ondas 4 e 8), SEM oracle (a feature toca apenas
+# `.github/workflows/ci.yml` e `Makefile` — não código Python). A suíte de testes
+# do projeto_hdd valida que nada foi quebrado; o gate exige CI verde incl. Integração.
+#
+# Tools já no meta-sandbox; worker com F2 (hdd-worker:latest após meta-onda 8).
+# Sem rebuild da imagem (a onda não muda deps Python).
+#
+# Uso:
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.onda9.yaml up -d
+services:
+  worker-meta:
+    environment:
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && ruff check . && MYPYPATH=src mypy && PYTHONPATH=src lint-imports && python -m pytest -q'
+      HDD_CLAUDE_TIMEOUT_S: "1200"
