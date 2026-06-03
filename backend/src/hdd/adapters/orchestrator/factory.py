@@ -41,6 +41,15 @@ async def open_orchestrator(
 ) -> AsyncIterator[WaveOrchestrator]:
     # Story 6.6: com workspace, o `claude` roda com cwd no clone efêmero e escrita
     # liberada (contida ao dir); sem workspace, mantém o bloqueio total (pré-6.6).
+    #
+    # PC-1 (Story 7.7 / ADR 0006) — contenção de filesystem do `execute`: na Fase 2
+    # (meta-dogfood) este provider roda DENTRO do container `worker`, cujo mount
+    # namespace NÃO inclui a árvore de prod (`/var/lib/projeto_hdd`) nem o dir de
+    # secrets — logo um Write absoluto do agente não os alcança (contenção por
+    # construção, análoga ao isolamento do `verify`). Pinado por
+    # `tests/unit/test_security_invariants.py::test_pc1_execute_contido_pelo_boundary_do_worker`.
+    # ⚠️ O driver host (`scripts/calibration_wave.py`) roda no HOST e NÃO tem esse
+    # boundary — é só para a calibração Fase 1 (repo separado), nunca meta-dogfood.
     disallowed = WORKSPACE_DISALLOWED if allow_write else DEFAULT_DISALLOWED
     provider = ClaudeSubscriptionProvider(
         model=settings.model,

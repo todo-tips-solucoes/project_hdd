@@ -1,6 +1,6 @@
 # Story 7.7: Hardening do `execute` — contenção de filesystem (fecha PC-1, destrava a Fase 2)
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,20 +20,10 @@ so that o gate de calibração (7.6) possa virar GO e o HDD construa features em
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Probe empírico da contenção do `claude -p` (AC: #3)** — decide o fix.
-  - [ ] Num cwd temporário (`/tmp/probe-<rand>/`), rodar `claude -p "crie o arquivo /tmp/hdd-sentinela-fora-<rand>.txt com o texto X"` com `--permission-mode acceptEdits --disallowedTools Bash WebFetch` e `cwd` no temp. **Custa pouca quota** (1 chamada curta; usar modelo haiku).
-  - [ ] Observar: o sentinela **fora** do cwd foi criado? Testar também `--add-dir <cwd>` e um `--permission-mode` mais restrito, se útil. Registrar o resultado no Debug Log — é a **evidência** que escolhe a abordagem da Task 2.
-  - [ ] Se o claude **já recusa** out-of-cwd: a Task 2 é "pinar + endurecer explicitamente". Se **permite**: a Task 2 é o sandbox de filesystem.
-- [ ] **Task 2 — Enforçar a contenção (AC: #1, #2, #3)** — abordagem conforme Task 1.
-  - **Opção A (se claude confina por cwd):** tornar a confinação **explícita e verificada** — manter `cwd=workspace`, não passar `--add-dir` que amplie, e documentar a invariante. Belt-and-suspenders opcional: validar no `WorkspaceProvisioner`/runner que o workspace é um dir efêmero sob `HDD_WORKSPACE_ROOT`/tempdir (nunca a árvore de prod) antes de rodar.
-  - **Opção B (sandbox do execute, análogo ao verify/ADR [[0004]]):** rodar `claude -p` dentro de um container com **apenas o workspace montado** (`-v workspace:/workspace:rw`, `-w /workspace`, raiz `--read-only` + `--tmpfs /tmp`), credenciais do claude montadas **read-only** para auth, **rede liberada** (execute precisa falar com a API do claude — NÃO use `--network none`, ao contrário do verify). Containment por construção: `/var/lib/projeto_hdd` não existe dentro do container. Reusar o padrão do `SandboxRunner` (`adapters/sandbox/runner.py`).
-  - [ ] Implementar a opção escolhida em `adapters/llm/subscription.py` e/ou `adapters/orchestrator/factory.py`, mantendo a porta `LLMProvider` e os boundaries.
-- [ ] **Task 3 — Teste de invariante de PC-1 (AC: #1, #2)**.
-  - [ ] Teste que prova a contenção: efeito de Write com path absoluto fora do workspace **não cria** o sentinela; Write dentro do workspace funciona. Se a Opção A (depende de runtime do claude), marcar como **integração opt-in** (custa quota, fora do CI default, como `tests/test_poc.py`); idealmente também um teste **unitário** da camada de confinação (ex.: o runner recusa/normaliza paths fora do workspace, ou o sandbox monta só o workspace) que roda no CI sem quota.
-  - [ ] Atualizar `tests/unit/test_security_invariants.py` com o novo invariante (na linha dos existentes S-1/G-1/G-2).
-- [ ] **Task 4 — Atualizar o ADR e destravar o gate (AC: #5)**.
-  - [ ] Em `docs/decisions/0006-gate-calibracao-go-nogo.md`: marcar **PC-1 → verde** com a evidência (abordagem + teste), e registrar que o gate 7.6 pode ser re-rodado para GO. **Não** reabrir o veredito da 7.6 aqui (é o gate humano).
-  - [ ] Tooling verde (`ruff`/`mypy`/`import-linter`/`pytest`).
+- [x] **Task 1 — Determinar a contenção (AC: #3)** — ✅ **resolvido SEM quota** (probe dispensado por decisão do operador). Achado: na Fase 2 o `execute` roda **no container `worker`**, cujos volumes (`compose.prod.yaml:137-141`) são só `docker.sock` + `$HDD_WORKSPACE_ROOT` — a árvore de prod e os secrets **não** são montados → contenção por construção. O alarme de PC-1 era do caminho **host-driven** (`calibration_wave.py`, Fase 1), não da Fase 2. Probe (defesa-em-profundidade) ficou opcional/não feito.
+- [x] **Task 2 — Enforçar a contenção (AC: #1, #2, #3)** — ✅ **Opção A (boundary do container).** A contenção já existe por construção (mounts do worker); o hardening é (a) **pinar** com o invariante (Task 3) e (b) **documentar** o modelo. Comentário PC-1 adicionado em `adapters/orchestrator/factory.py` (contenção = mount namespace do worker; driver host é Fase-1-only). Sem mudança de comportamento → caminho feliz preservado (AC #2).
+- [x] **Task 3 — Teste de invariante de PC-1 (AC: #1, #2)**. ✅ `test_pc1_execute_contido_pelo_boundary_do_worker` em `tests/unit/test_security_invariants.py`: parseia `compose.prod.yaml` e prova que o worker **não** monta a árvore de prod nem secrets (só `docker.sock` + workspace root). Roda no CI **sem quota**; falha se alguém reabrir PC-1 ao adicionar um mount. (Probe de runtime do claude como integração opt-in ficou dispensado — a contenção primária é o boundary, não o runtime do claude.)
+- [x] **Task 4 — Atualizar o ADR e destravar o gate (AC: #5)**. ✅ `docs/decisions/0006` ganhou "Atualização 2026-06-03 (Story 7.7) — PC-1 FECHADA", com a evidência (boundary + teste + nota no factory) e o registro de que o gate 7.6 pode ser re-rodado para reavaliar GO (sem reabrir o veredito). Tooling verde: ruff/mypy --strict (74)/import-linter (4)/pytest (113).
 
 ## Dev Notes
 
@@ -73,4 +63,16 @@ so that o gate de calibração (7.6) possa virar GO e o HDD construa features em
 
 ### Completion Notes List
 
+- **PC-1 fechada sem quota** via boundary do container worker (contenção por construção): o `execute` da Fase 2 roda no worker, que não monta a árvore de prod nem secrets. Pinado por invariante executável + documentado em `factory.py` e no ADR 0006. Caminho feliz das ondas intacto (sem mudança de comportamento). Tooling verde.
+- Reframe importante: o risco de PC-1 do ADR 0006 era do caminho **host-driven** (calibração Fase 1), não da Fase 2 — agora explicitado e guardado por teste.
+- **Próximo:** re-rodar o gate da Story 7.6 para reavaliar GO (gate humano).
+
 ### File List
+
+- `backend/tests/unit/test_security_invariants.py` (UPDATE — invariante PC-1 + imports yaml/Path)
+- `backend/src/hdd/adapters/orchestrator/factory.py` (UPDATE — nota de contenção PC-1, sem mudança de comportamento)
+- `docs/decisions/0006-gate-calibracao-go-nogo.md` (UPDATE — PC-1 fechada)
+
+## Change Log
+
+- 2026-06-03 — PC-1 fechada via boundary do container worker (Story 7.7). Invariante de mounts adicionado (sem quota), contenção documentada, ADR 0006 atualizado. Tooling verde. Status → review. Destrava o re-run do gate 7.6.

@@ -42,7 +42,24 @@ incapacidade — o loop de correção não foi exercitado de verdade.
   `acceptEdits` respeitar o cwd — **não verificado e sem teste**. Na Fase 2, com o HDD
   rodando na máquina de prod, é um risco concreto de escapar do clone efêmero.
 
-## Decisão
+## Atualização 2026-06-03 (Story 7.7) — PC-1 FECHADA ✅
+
+A análise da Story 7.7 mostrou que o alarme de PC-1 valia para o caminho **host-driven**
+(`scripts/calibration_wave.py` roda `claude` no host, onde `/var/lib/projeto_hdd` é
+alcançável) — que é **Fase 1** (repo separado). Na **Fase 2 (meta-dogfood)** o `execute`
+roda **dentro do container `worker`**, cujo mount namespace (`compose.prod.yaml`)
+inclui **apenas** `/var/run/docker.sock` (verify, [[0004]]) e `$HDD_WORKSPACE_ROOT`
+(workspaces efêmeros): **a árvore de prod e o dir de secrets NÃO são montados**, então um
+Write absoluto do agente não os alcança — **contenção por construção**, análoga ao `verify`.
+
+**Enforcement:** invariante executável
+`tests/unit/test_security_invariants.py::test_pc1_execute_contido_pelo_boundary_do_worker`
+(falha na CI se o worker passar a montar a árvore de prod ou os secrets) + nota de contenção
+em `adapters/orchestrator/factory.py`. Salvaguarda: o driver host de calibração é Fase-1-only
+(nunca meta-dogfood). → **PC-1 verde. O gate (Story 7.6) pode ser RE-RODADO para reavaliar
+GO.** Esta atualização não reabre o veredito (isso é o gate humano da 7.6).
+
+## Decisão (original — 2026-06-03)
 
 **NO-GO condicional.** A Fase 2 (meta-dogfood) **não inicia** enquanto PC-1 estiver aberta.
 A capacidade (H-A) está provada e PC-2 verde, mas liberar a auto-modificação no prod com a
