@@ -22,9 +22,10 @@ def _settings(command: str) -> Settings:
 
 def test_verify_passa_com_suite_verde(tmp_path) -> None:
     verify = make_sandbox_verifier(_settings("true"))
-    assert verify(str(tmp_path)) is True
+    assert verify(str(tmp_path)) == (True, "")
 
 
 def test_verify_reprova_com_suite_vermelha(tmp_path) -> None:
     verify = make_sandbox_verifier(_settings("false"))
-    assert verify(str(tmp_path)) is False
+    ok, _output = verify(str(tmp_path))
+    assert ok is False
