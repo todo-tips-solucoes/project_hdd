@@ -1,0 +1,27 @@
+# Override da META-ONDA 7 (Epic 7, Fase 2 — Story 7.15).
+#
+# Mitiga o F6 (meta-onda 6): com verify oracle-only, o agente não escreveu os
+# próprios testes (não eram exercitados). Aqui o verify roda a SUÍTE DO AGENTE
+# (tests/unit, que inclui o test_parsing.py que ele escreve) JUNTO com o oracle
+# oculto — forçando o agente a (a) escrever testes e (b) reconciliá-los com a spec
+# oculta via o feedback do verify (F2).
+#
+# Feature-veículo: parse_bool (domain/parsing.py), convenção não-óbvia (conjunto
+# aceito + ValueError em desconhecido) → diverge na 1ª passada → converge.
+#
+# Validado no sandbox: impl correta → RC=0 (suíte unitária + oracle verdes);
+# ingênua → oracle reprova. Worker com F2; timeout 1200; sem rebuild do meta-sandbox.
+#
+# Nota: aponta tests/unit (não tests/) para excluir as integration (docker/rede),
+# e PYTHONPATH=src resolve o pacote (o projeto não é instalado no sandbox).
+#
+# Uso:
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.onda7.yaml up -d
+services:
+  worker-meta:
+    environment:
+      HDD_ORACLE_DIR: ${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/parsebool}
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && PYTHONPATH=src python -m pytest tests/unit /oracle -q'
+      HDD_CLAUDE_TIMEOUT_S: "1200"
+    volumes:
+      - ${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/parsebool}:${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/parsebool}:ro

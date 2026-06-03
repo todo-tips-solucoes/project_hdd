@@ -257,3 +257,28 @@ direto com a Meta-onda 2 (mesmas falhas → timeout cego, pré-F2). Fecha o arco
   no checkpointer, `->execute=3`) — mesma família do F3 (projeção incompleta). Candidato a hardening.
 
 **Convergência às cegas: DEMONSTRADA** ✅ — encerra o objetivo central do meta-dogfood do Epic 7.
+
+### Meta-onda 7 — verify = suíte do agente + oracle (mitiga F6) (Story 7.15, 2026-06-03)
+
+Endereça o **F6**: o verify passou a rodar a **suíte unitária do agente** (`tests/unit`, incluindo
+o `test_parsing.py` que ele escreve) **junto com** o oracle oculto. Feature-veículo: `parse_bool`
+(`domain/parsing.py`).
+
+| Campo | Valor |
+|---|---|
+| Onda | `019e8e6c-40ac` · worker com F2 · verify = `pytest tests/unit /oracle` |
+| Desfecho | **awaiting_gate one-shot** (`->execute=1`, verify exit 0) |
+| PR | #32 → merged `--squash` → `dd5c454` (DoD verde, **sem fix manual**) |
+
+- **F6 mitigado:** o agente **escreveu** `test_parsing.py` (22 válidos + 9 inválidos), **consistente
+  com o oracle**, e os testes foram exercitados no verify — contraste com a onda 6 (oracle-only → o
+  agente não escreveu testes → adicionados no gate).
+- **Nuance honesta:** o verify=suíte+oracle **força consistência** dos testes do agente com a spec
+  (pegaria testes errados via reconciliação), mas **não compele** a escrevê-los — isso ainda depende
+  da instrução da tarefa + checagem no gate. Aqui o agente os escreveu one-shot (o caso de
+  reconciliação não foi exercitado). `parse_bool`: strip+lower; true/1/yes/on; false/0/no/off;
+  desconhecido → ValueError.
+- **Gate:** ruff ✓ · mypy --strict ✓ (78) · import-linter ✓ (4/4) · pytest ✓ (194). Operador
+  aprovou; `--squash --admin`.
+
+**F6 ENDEREÇADO** ✅ (com a nuance acima registrada).
