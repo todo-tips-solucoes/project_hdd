@@ -1,6 +1,6 @@
 # Story 7.6: Gate de calibração — decisão GO/NO-GO para a Fase 2 (meta-dogfood)
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -20,23 +20,15 @@ so that a Fase 2 (meta-dogfood no próprio `projeto_hdd`) só comece com confian
 
 ## Tasks / Subtasks
 
-- [ ] **Task 1 — Consolidar métricas da Fase 1 (AC: #1)**.
-  - [ ] Reunir de `docs/dogfood-calibragem.md` (e do harness `hdd_wave_outcomes_total`, se o DB de dev for resubido) os desfechos das 3 ondas: cep (7.4/haiku), cnpj (7.5/sonnet), data_br (7.5/haiku).
-  - [ ] Tabela-evidência: **3/3 `reached_gate`, 0 correções, 0 escaladas, 0 leases vazados**; encanamento `clone→claude→verify→PR→gate→merge` validado ponta a ponta.
-  - [ ] Anotar o **achado estrutural** (oracle visível ao `execute` → one-shot; loop de correção não exercitado) como nuance da interpretação de H-A.
-- [ ] **Task 2 — PC-1: contenção de path testada (AC: #2)** — bloqueante.
-  - [ ] Ler `backend/tests/unit/test_security_invariants.py` e `src/hdd/application/broker.py` + `src/hdd/domain/capability.py`: verificar se já há invariante de contenção de path (Write absoluto fora do workspace).
-  - [ ] Se faltar: escrever o teste de invariante (RED→GREEN) que prova que um efeito com path absoluto fora do workspace **falha/é recusado**. Se a contenção não estiver enforçada no `execute` (ADR 0002 host-cwd), registrar como gap e refletir no veredito (GO condicional / NO-GO).
-  - [ ] Tooling verde (`ruff`/`mypy`/`import-linter`/`pytest`).
-- [ ] **Task 3 — PC-2: auditar ausência de auto-deploy (AC: #3)** — bloqueante.
-  - [ ] Ler `.github/workflows/ci.yml` por inteiro: confirmar que não há step de deploy/redeploy/ssh/swarm no merge (preliminar: só `setup-buildx` para build, sem deploy).
-  - [ ] Ler `compose.prod.yaml`: confirmar ausência de watchtower/webhook/autoredeploy (preliminar: só políticas `restart:`).
-  - [ ] Citar a evidência (linhas) no ADR.
-- [ ] **Task 4 — Decisão GO/NO-GO (AC: #4)**.
-  - [ ] Aplicar o critério qualitativo ancorado em H-A: ≥1 onda completa sem intervenção fora do gate (3/3) + quota sustentável (driver `subscription` não emite custo; 3 ondas sem `quota_hit`).
-  - [ ] **Ponto humano (gate):** apresentar a recomendação ao operador e obter o veredito explícito antes de gravar o ADR.
-- [ ] **Task 5 — Registrar o veredito (AC: #5)**.
-  - [ ] Criar `docs/decisions/0006-gate-calibracao-go-nogo.md` (estilo dos ADRs 0001–0005): contexto, métricas-evidência, PC-1/PC-2, decisão GO/NO-GO, salvaguardas da Fase 2, e — se GO — o alvo da primeira meta-onda (candidato: dívida nº 7 worker multi-arch, ou o backlog "oracle oculto" achado na 7.5).
+- [x] **Task 1 — Consolidar métricas da Fase 1 (AC: #1)**. ✅ 3/3 ondas (cep/haiku, cnpj/sonnet, data_br/haiku) `reached_gate`, **0 correções, 0 escaladas, 0 leases vazados**; pipeline `clone→claude→verify→PR→gate→merge` validado ponta a ponta (PRs #1/#3/#4 mergeados). Nuance H-A: 0 correções decorre do oracle visível ao `execute` (achado da 7.5), não de incapacidade.
+- [x] **Task 2 — PC-1: contenção de path (AC: #2)** — bloqueante. ✅ análise feita; **resultado: PC-1 NÃO satisfeita (gap real).**
+  - Enforcement existente cobre só **shell**: `domain/capability.py` classifica `rm`/DROP/DELETE/push fora do workspace, e `WORKSPACE_DISALLOWED` bloqueia `Bash`/`WebFetch`. O **Write/Edit é permitido** no `execute`.
+  - **O broker NÃO está wirado aos efeitos de Write** (grep: só citado em comentários; nenhum call-site roteia tool-use do claude por `broker.authorize`). O `claude -p` roda autônomo.
+  - O `execute` usa `permission_mode="acceptEdits"` + `cwd=workspace`, **sem `--add-dir`** (factory.py:44-51). A contenção de um Write com **path absoluto fora do workspace** depende inteiramente de o `acceptEdits` respeitar o cwd — **não verificado, sem teste**. Para a Fase 2 (HDD no prod), `/var/lib/projeto_hdd/...` ou `secrets/` ficam teoricamente alcançáveis.
+  - Um teste unitário **não fecha** PC-1 (o risco é comportamento de runtime do claude + falta de enforcement). Fechar exige: `--add-dir` workspace-only **e verificar**, ou sandboxar o `execute` (análogo ao verify, ADR 0004), + teste de invariante (integração) que asserte que um Write em sentinela fora do workspace não ocorre. → **Backlog bloqueante da Fase 2.**
+- [x] **Task 3 — PC-2: auditar ausência de auto-deploy (AC: #3)** — bloqueante. ✅ **VERDE, verificado.** `ci.yml` (push/PR em main): jobs `quality`/`integration`/`openapi-drift`/`frontend`/`deps`/`docker-build` — o `docker-build` usa **`push: false`** (builda, não publica nem deploya); **zero step de deploy/ssh/swarm/redeploy**. `compose.prod.yaml`: sem watchtower/webhook/autoredeploy (o `webhook` lá é o HMAC inbound do n8n; só políticas `restart:`). Deploy é **manual** (`docs/runbooks/deploy.md`). A salvaguarda "deploy manual" passa de premissa a fato verificado.
+- [x] **Task 4 — Decisão GO/NO-GO (AC: #4)**. ✅ recomendação NO-GO condicional apresentada; **veredito do operador: NO-GO até fechar PC-1** (gate humano, 2026-06-03).
+- [x] **Task 5 — Registrar o veredito (AC: #5)**. ✅ `docs/decisions/0006-gate-calibracao-go-nogo.md` criado: evidência de capacidade, PC-1/PC-2, decisão NO-GO condicional, backlog bloqueante (confinar/sandboxar o execute + teste) e caminho para reabrir o gate → GO.
 
 ## Dev Notes
 
@@ -71,6 +63,20 @@ so that a Fase 2 (meta-dogfood no próprio `projeto_hdd`) só comece com confian
 
 ### Debug Log References
 
+**Análise do gate (2026-06-03) — recomendação ao operador (Task 4):**
+- **Capacidade (H-A): GO-worthy** — 3/3 features reais one-shot, 0 escaladas, 0 leases vazados, pipeline E2E validado; quota sustentável (driver `subscription` sem custo emitido, 0 `quota_hit`).
+- **PC-2: ✅ VERDE** — sem auto-deploy (evidência citada).
+- **PC-1: ❌ NÃO MET (bloqueante)** — contenção de Write absoluto fora do workspace é *soft* (`acceptEdits`+cwd, sem `--add-dir`, broker não wirado, sem teste). Risco concreto na Fase 2 (HDD no prod).
+- **Recomendação: NO-GO condicional** — não liberar a Fase 2 até fechar PC-1 (backlog: confinar/sandboxar o `execute` + teste de invariante). O eixo de capacidade está provado; o gate cumpriu seu papel ao barrar a auto-modificação até a contenção ser endurecida. Veredito final é decisão do operador (Task 4).
+
 ### Completion Notes List
 
+- Gate executado sem consumir quota (decisão/análise). Capacidade H-A provada (3/3 one-shot); PC-2 verde; **PC-1 não met** → **NO-GO condicional** (veredito do operador). Nenhum código do backend alterado nesta story — só ADR + doc da story.
+
 ### File List
+
+- `docs/decisions/0006-gate-calibracao-go-nogo.md` (novo — veredito do gate)
+
+## Change Log
+
+- 2026-06-03 — Gate de calibração executado (Tasks 1-5). Métricas Fase 1 consolidadas; PC-2 verificado verde; PC-1 identificada como gap bloqueante (contenção de Write não enforçada/testada). Veredito do operador: **NO-GO condicional**. ADR 0006 registrado. Status → review.
