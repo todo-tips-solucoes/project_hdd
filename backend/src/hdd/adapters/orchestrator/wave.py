@@ -50,11 +50,13 @@ class WaveOrchestrator:
         checkpointer: Any,
         max_corrections: int = 3,
         vcs: Vcs | None = None,
+        codegen: Verifier | None = None,
     ) -> None:
         self._llm = llm
         self._verify = verify
         self._max = max_corrections
         self._vcs = vcs
+        self._codegen = codegen
         self._graph = self._build(checkpointer)
 
     # --- helpers -----------------------------------------------------------
@@ -79,7 +81,15 @@ class WaveOrchestrator:
         return {"wave_state": self._to(state, wv.WaveState.VERIFYING)}
 
     def _verify_node(self, state: WaveGraphState) -> dict[str, Any]:
-        ok, feedback = self._verify(state.get("workspace", ""))
+        workspace = state.get("workspace", "")
+        if self._codegen is not None:
+            cg_ok, cg_fb = self._codegen(workspace)
+            if not cg_ok:
+                return {
+                    "wave_state": self._to(state, wv.WaveState.CORRECTING),
+                    "verify_feedback": cg_fb,
+                }
+        ok, feedback = self._verify(workspace)
         target = wv.WaveState.AWAITING_GATE if ok else wv.WaveState.CORRECTING
         out: dict[str, Any] = {"wave_state": self._to(state, target)}
         if not ok:

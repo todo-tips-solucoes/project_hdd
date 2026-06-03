@@ -21,6 +21,7 @@ from hdd.adapters.llm.subscription import (
     ClaudeSubscriptionProvider,
 )
 from hdd.adapters.orchestrator.wave import Verifier, WaveOrchestrator
+from hdd.adapters.sandbox.verifier import make_sandbox_codegen
 from hdd.adapters.vcs import GitHubVcs
 from hdd.config.settings import Settings
 
@@ -65,8 +66,9 @@ async def open_orchestrator(
     vcs = None
     if workspace or settings.repo_slug:
         vcs = GitHubVcs(workspace or ".", repo_slug=settings.repo_slug or None)
+    codegen = make_sandbox_codegen(settings) if settings.codegen_command else None
     async with AsyncPostgresSaver.from_conn_string(settings.pg_dsn) as checkpointer:
         await checkpointer.setup()
         yield WaveOrchestrator(
-            provider, verify=verify, checkpointer=checkpointer, vcs=vcs
+            provider, verify=verify, checkpointer=checkpointer, vcs=vcs, codegen=codegen
         )

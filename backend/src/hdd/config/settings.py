@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # Dir com fixtures privadas montado read-only em /oracle apenas no verify.
     # None → sem mount (retrocompatível). Env: HDD_ORACLE_DIR.
     oracle_dir: str | None = None
+    # Comando de geração de artefatos derivados rodado no sandbox ANTES do verify.
+    # Vazio → passo desligado. Env: HDD_CODEGEN_COMMAND.
+    codegen_command: str = ""
 
     # --- Epic 6: provisionamento de workspace da onda (Story 6.6) ----------
     # Repo-alvo clonado num dir efêmero por onda. Vazio → sem workspace (o

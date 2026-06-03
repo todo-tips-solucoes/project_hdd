@@ -167,3 +167,78 @@ async def test_merge_falho_nao_trava_o_resume():
     final = await orch.resume("w-mf", True)
     assert final["wave_state"] == "merged"  # decisão humana de merge mantém-se
     assert "merge bloqueado" in final.get("merge_error", "")
+
+
+# --- codegen: passo antes do verify ----------------------------------------
+
+
+async def test_codegen_roda_antes_do_verify() -> None:
+    order: list[str] = []
+
+    def cg(ws: str) -> tuple[bool, str]:
+        order.append("codegen")
+        return (True, "")
+
+    def v(ws: str) -> tuple[bool, str]:
+        order.append("verify")
+        return (True, "")
+
+    orch = WaveOrchestrator(
+        FakeLLM(), verify=v, checkpointer=MemorySaver(), codegen=cg
+    )
+    await orch.run_wave("w-order", "tarefa")
+    assert order == ["codegen", "verify"]
+
+
+async def test_codegen_falho_loop_escala_sem_merge() -> None:
+    orch = WaveOrchestrator(
+        FakeLLM(),
+        verify=lambda ws: (True, ""),  # verify sempre passa — nunca deve ser atingido
+        checkpointer=MemorySaver(),
+        max_corrections=1,
+        codegen=lambda ws: (False, "falha no codegen"),
+    )
+    out = await orch.run_wave("w-cg-fail", "tarefa", workspace="/ws")
+    assert out["wave_state"] == "escalated"
+    assert out.get("result") != "merged"
+
+
+async def test_codegen_falho_injeta_feedback_na_correcao() -> None:
+    prompts: list[str] = []
+
+    class RecordingLLM:
+        def invoke(self, prompt: str) -> LlmResult:
+            prompts.append(prompt)
+            return LlmResult(
+                text="ok", session_id=None, exit_code=0, quota_exhausted=False, raw="ok"
+            )
+
+    tentativas = 0
+
+    def once_failing_codegen(ws: str) -> tuple[bool, str]:
+        nonlocal tentativas
+        tentativas += 1
+        return (False, "falha no codegen") if tentativas == 1 else (True, "")
+
+    orch = WaveOrchestrator(
+        RecordingLLM(),
+        verify=lambda ws: (True, ""),
+        checkpointer=MemorySaver(),
+        max_corrections=3,
+        codegen=once_failing_codegen,
+    )
+    await orch.run_wave("w-cg-fb", "tarefa")
+    execute_prompts = [p for p in prompts if p.startswith("Implemente")]
+    assert len(execute_prompts) == 2
+    assert "falha no codegen" in execute_prompts[1]
+
+
+async def test_sem_codegen_fluxo_identico_ao_atual() -> None:
+    orch = WaveOrchestrator(
+        FakeLLM(),
+        verify=lambda ws: (True, ""),
+        checkpointer=MemorySaver(),
+        # codegen omitido → None
+    )
+    out = await orch.run_wave("w-nocg", "tarefa")
+    assert out["wave_state"] == "awaiting_gate"
