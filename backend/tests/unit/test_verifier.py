@@ -38,7 +38,7 @@ def test_verify_true_quando_testes_passam() -> None:
     settings = Settings(
         verify_command="pytest -q", sandbox_image="img", sandbox_network="none"
     )
-    assert make_sandbox_verifier(settings, runner=runner)("/ws") is True
+    assert make_sandbox_verifier(settings, runner=runner)("/ws") == (True, "")
     command, cfg = runner.calls[0]
     assert command == ["pytest", "-q"]  # verify_command via shlex
     assert cfg.workspace == "/ws"
@@ -47,17 +47,19 @@ def test_verify_true_quando_testes_passam() -> None:
 
 
 def test_verify_false_quando_testes_falham() -> None:
-    assert make_sandbox_verifier(Settings(), runner=FakeRunner(1))("/ws") is False
+    ok, _ = make_sandbox_verifier(Settings(), runner=FakeRunner(1))("/ws")
+    assert ok is False
 
 
 def test_verify_sem_workspace_defere_ao_gate() -> None:
     runner = FakeRunner(1)  # exit 1 não importa: nem deve rodar
-    assert make_sandbox_verifier(Settings(), runner=runner)("") is True
+    assert make_sandbox_verifier(Settings(), runner=runner)("") == (True, "")
     assert runner.calls == []  # sandbox não foi invocado
 
 
 def test_verify_falha_de_execucao_dispara_correcao() -> None:
-    assert make_sandbox_verifier(Settings(), runner=FakeRunner(boom=True))("/ws") is False
+    ok, _ = make_sandbox_verifier(Settings(), runner=FakeRunner(boom=True))("/ws")
+    assert ok is False
 
 
 async def test_orquestrador_com_verify_reprovado_escala() -> None:
@@ -74,6 +76,16 @@ async def test_orquestrador_com_verify_aprovado_vai_ao_gate() -> None:
     orch = WaveOrchestrator(FakeLLM(), verify=verify, checkpointer=MemorySaver())
     out = await orch.run_wave("wv-green", "tarefa", workspace="/ws")
     assert out["wave_state"] == "awaiting_gate"  # aprovado → gate humano de merge
+
+
+def test_devolve_output_na_reprovacao() -> None:
+    runner = FakeRunner(1)  # SandboxResult(1, "out", "err")
+    _, output = make_sandbox_verifier(Settings(), runner=runner)("/ws")
+    assert output == "errout"  # stderr + stdout
+
+
+def test_ok_nao_devolve_output() -> None:
+    assert make_sandbox_verifier(Settings(), runner=FakeRunner(0))("/ws") == (True, "")
 
 
 def test_verify_propaga_oracle_dir_para_config() -> None:

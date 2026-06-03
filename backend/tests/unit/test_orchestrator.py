@@ -26,7 +26,7 @@ class FakeVcs:
 
 
 async def test_happy_path_pausa_no_gate_e_faz_merge():
-    orch = WaveOrchestrator(FakeLLM(), verify=lambda ws: True, checkpointer=MemorySaver())
+    orch = WaveOrchestrator(FakeLLM(), verify=lambda ws: (True, ""), checkpointer=MemorySaver())
     out = await orch.run_wave("w1", "criar feature")
     assert out["wave_state"] == "awaiting_gate"  # suspendeu no gate de merge
     final = await orch.resume("w1", True)
@@ -34,9 +34,34 @@ async def test_happy_path_pausa_no_gate_e_faz_merge():
     assert final["result"] == "merged"
 
 
+async def test_feedback_da_verificacao_injetado_na_correcao():
+    prompts: list[str] = []
+
+    class RecordingLLM:
+        def invoke(self, prompt: str) -> LlmResult:
+            prompts.append(prompt)
+            return LlmResult(text="ok", session_id=None, exit_code=0, quota_exhausted=False, raw="ok")
+
+    tentativas = 0
+
+    def once_failing(ws: str) -> tuple[bool, str]:
+        nonlocal tentativas
+        tentativas += 1
+        return (False, "saída de erro") if tentativas == 1 else (True, "")
+
+    orch = WaveOrchestrator(
+        RecordingLLM(), verify=once_failing, checkpointer=MemorySaver(), max_corrections=3
+    )
+    await orch.run_wave("w-fb", "tarefa")
+    execute_prompts = [p for p in prompts if p.startswith("Implemente")]
+    assert len(execute_prompts) == 2
+    assert "saída de erro" not in execute_prompts[0]
+    assert "saída de erro" in execute_prompts[1]
+
+
 async def test_verificacao_reprova_gera_loop_e_escala_sem_merge():
     orch = WaveOrchestrator(
-        FakeLLM(), verify=lambda ws: False, checkpointer=MemorySaver(), max_corrections=2
+        FakeLLM(), verify=lambda ws: (False, ""), checkpointer=MemorySaver(), max_corrections=2
     )
     out = await orch.run_wave("w2", "criar feature")
     # n=1,2 (≤2) re-executam; n=3 (>2) escala. Nunca faz merge.
@@ -46,7 +71,7 @@ async def test_verificacao_reprova_gera_loop_e_escala_sem_merge():
 
 
 async def test_gate_rejeitado_nao_faz_merge():
-    orch = WaveOrchestrator(FakeLLM(), verify=lambda ws: True, checkpointer=MemorySaver())
+    orch = WaveOrchestrator(FakeLLM(), verify=lambda ws: (True, ""), checkpointer=MemorySaver())
     await orch.run_wave("w3", "criar feature")
     final = await orch.resume("w3", False)
     assert final["wave_state"] == "failed"
@@ -57,7 +82,7 @@ async def test_gate_rejeitado_nao_faz_merge():
 async def test_pr_aberto_antes_do_gate():
     vcs = FakeVcs()
     orch = WaveOrchestrator(
-        FakeLLM(), verify=lambda ws: True, checkpointer=MemorySaver(), vcs=vcs
+        FakeLLM(), verify=lambda ws: (True, ""), checkpointer=MemorySaver(), vcs=vcs
     )
     out = await orch.run_wave("w-pr", "criar feature", workspace="/ws", branch="hdd/wave-w-pr")
     assert out["wave_state"] == "awaiting_gate"  # PR aberto, depois pausa no gate
@@ -70,7 +95,7 @@ async def test_pr_aberto_antes_do_gate():
 async def test_verificacao_reprovada_nao_abre_pr():
     vcs = FakeVcs()
     orch = WaveOrchestrator(
-        FakeLLM(), verify=lambda ws: False, checkpointer=MemorySaver(), max_corrections=1, vcs=vcs
+        FakeLLM(), verify=lambda ws: (False, ""), checkpointer=MemorySaver(), max_corrections=1, vcs=vcs
     )
     out = await orch.run_wave("w-nopr", "x", workspace="/ws", branch="hdd/wave-w-nopr")
     assert out["wave_state"] == "escalated"
@@ -83,7 +108,7 @@ async def test_falha_ao_abrir_pr_nao_trava_a_onda():
             raise RuntimeError("gh indisponível")
 
     orch = WaveOrchestrator(
-        FakeLLM(), verify=lambda ws: True, checkpointer=MemorySaver(), vcs=BoomVcs()
+        FakeLLM(), verify=lambda ws: (True, ""), checkpointer=MemorySaver(), vcs=BoomVcs()
     )
     out = await orch.run_wave("w-boom", "x", workspace="/ws", branch="b")
     assert out["wave_state"] == "awaiting_gate"  # chega ao gate apesar do erro
@@ -92,7 +117,7 @@ async def test_falha_ao_abrir_pr_nao_trava_a_onda():
 
 
 async def test_sem_vcs_nem_branch_segue_ao_gate_sem_pr():
-    orch = WaveOrchestrator(FakeLLM(), verify=lambda ws: True, checkpointer=MemorySaver())
+    orch = WaveOrchestrator(FakeLLM(), verify=lambda ws: (True, ""), checkpointer=MemorySaver())
     out = await orch.run_wave("w-novcs", "x")  # sem workspace/branch/vcs
     assert out["wave_state"] == "awaiting_gate"
     assert not out.get("pr_url")
@@ -102,7 +127,7 @@ async def test_sem_vcs_nem_branch_segue_ao_gate_sem_pr():
 async def test_aprovar_gate_mergeia_o_pr():
     vcs = FakeVcs()
     orch = WaveOrchestrator(
-        FakeLLM(), verify=lambda ws: True, checkpointer=MemorySaver(), vcs=vcs
+        FakeLLM(), verify=lambda ws: (True, ""), checkpointer=MemorySaver(), vcs=vcs
     )
     await orch.run_wave("w-m", "x", workspace="/ws", branch="b")  # abre PR #42
     final = await orch.resume("w-m", True)
@@ -113,7 +138,7 @@ async def test_aprovar_gate_mergeia_o_pr():
 async def test_rejeitar_gate_nao_mergeia():
     vcs = FakeVcs()
     orch = WaveOrchestrator(
-        FakeLLM(), verify=lambda ws: True, checkpointer=MemorySaver(), vcs=vcs
+        FakeLLM(), verify=lambda ws: (True, ""), checkpointer=MemorySaver(), vcs=vcs
     )
     await orch.run_wave("w-r", "x", workspace="/ws", branch="b")
     final = await orch.resume("w-r", False)
@@ -130,7 +155,7 @@ async def test_merge_falho_nao_trava_o_resume():
             raise RuntimeError("merge bloqueado por checks")
 
     orch = WaveOrchestrator(
-        FakeLLM(), verify=lambda ws: True, checkpointer=MemorySaver(), vcs=HalfVcs()
+        FakeLLM(), verify=lambda ws: (True, ""), checkpointer=MemorySaver(), vcs=HalfVcs()
     )
     await orch.run_wave("w-mf", "x", workspace="/ws", branch="b")
     final = await orch.resume("w-mf", True)

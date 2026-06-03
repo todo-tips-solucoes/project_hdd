@@ -24,7 +24,7 @@ from hdd.observability import get_logger
 
 log = get_logger("orchestrator")
 
-Verifier = Callable[[str], bool]
+Verifier = Callable[[str], tuple[bool, str]]
 
 
 class WaveGraphState(TypedDict, total=False):
@@ -34,6 +34,7 @@ class WaveGraphState(TypedDict, total=False):
     wave_state: str
     plan: str
     n_corrections: int
+    verify_feedback: str
     result: str
     pr_url: str
     pr_number: int
@@ -67,13 +68,20 @@ class WaveOrchestrator:
         return {"plan": plan, "wave_state": self._to(state, wv.WaveState.EXECUTING)}
 
     def _execute(self, state: WaveGraphState) -> dict[str, Any]:
-        self._llm.invoke(f"Implemente conforme o plano:\n{state.get('plan', '')}")
+        prompt = f"Implemente conforme o plano:\n{state.get('plan', '')}"
+        feedback = state.get("verify_feedback", "")
+        if state.get("n_corrections", 0) > 0 and feedback:
+            prompt += f"\n\nA verificação anterior falhou com:\n{feedback}\nCorrija a implementação."
+        self._llm.invoke(prompt)
         return {"wave_state": self._to(state, wv.WaveState.VERIFYING)}
 
     def _verify_node(self, state: WaveGraphState) -> dict[str, Any]:
-        ok = self._verify(state.get("workspace", ""))
+        ok, feedback = self._verify(state.get("workspace", ""))
         target = wv.WaveState.AWAITING_GATE if ok else wv.WaveState.CORRECTING
-        return {"wave_state": self._to(state, target)}
+        out: dict[str, Any] = {"wave_state": self._to(state, target)}
+        if not ok:
+            out["verify_feedback"] = feedback
+        return out
 
     def _correct(self, state: WaveGraphState) -> dict[str, Any]:
         n = state.get("n_corrections", 0) + 1

@@ -25,16 +25,16 @@ log = get_logger("verify")
 
 def make_sandbox_verifier(
     settings: Settings, runner: SandboxRunner | None = None
-) -> Callable[[str], bool]:
+) -> Callable[[str], tuple[bool, str]]:
     sandbox = runner or SandboxRunner()
     command = shlex.split(settings.verify_command)
 
-    def verify(workspace: str) -> bool:
+    def verify(workspace: str) -> tuple[bool, str]:
         if not workspace:
             # Provisionamento de workspace ainda não wired (gap downstream): sem
             # área para testar, defere ao gate humano (conservador, não bloqueia).
             log.warning("verify.sem_workspace")
-            return True
+            return (True, "")
         cfg = SandboxConfig(
             workspace=workspace,
             image=settings.sandbox_image,
@@ -46,9 +46,9 @@ def make_sandbox_verifier(
         except Exception:
             # Falha de execução do sandbox (timeout/docker) ≠ testes ok → corrige.
             log.exception("verify.sandbox_falhou", workspace=workspace)
-            return False
+            return (False, "")
         ok = result.exit_code == 0
         log.info("verify.concluido", workspace=workspace, exit_code=result.exit_code, ok=ok)
-        return ok
+        return (True, "") if ok else (False, result.stderr + result.stdout)
 
     return verify
