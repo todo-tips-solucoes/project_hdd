@@ -282,3 +282,28 @@ o `test_parsing.py` que ele escreve) **junto com** o oracle oculto. Feature-veí
   aprovou; `--squash --admin`.
 
 **F6 ENDEREÇADO** ✅ (com a nuance acima registrada).
+
+### Meta-onda 8 — projeção de n_corrections + estado em falha (família-F3) (Story 7.16, 2026-06-03)
+
+Endereça a **família-F3** observada no arco: `app.waves.n_corrections` projetava 0 mesmo com
+correções (visível só no checkpointer) e o estado ficava preso em `planned` quando a onda falhava.
+Fix na **projeção** (worker bridge + repository), não função pura. verify = DoD completo (sem oracle).
+
+| Campo | Valor |
+|---|---|
+| Onda | `019e8ea4-d99e` · worker com F2 · verify = DoD completo |
+| Desfecho | **awaiting_gate one-shot** (verify exit 0) |
+| PR | #34 → merged `--squash` **sem `--admin`** → `a9d9486` |
+
+**Mudança (revisada no gate):** `Repository.sync_wave_state` ganhou parâmetro **opcional**
+`n_corrections` (retrocompatível com `gates.py`); `bridge_after_wave` passa
+`result.get('n_corrections', 0)`; novo helper `_safe_project_failed` (best-effort, espelha
+`_safe_record_gap`) projeta `WaveState.FAILED` nos dois `except` de `run_wave` sem mascarar a
+exceção. O agente **atualizou os testes de integração** (`test_gate_roundtrip.py`,
+`test_persistence.py`) + unitários proativamente.
+
+**🔑 Lição do PR #33 aplicada:** o agente não roda integração in-loop (sandbox `--network none`); no
+gate exigi o **CI completo verde** (`gh pr checks`) — **Integração (Postgres+pgvector) → pass** com
+Postgres real — e mergeei **sem `--admin`**. Sem o problema do #28 (regressão de integração mascarada).
+
+**Família-F3 ENDEREÇADA** ✅ — `app.waves` agora reflete correções e falhas (observável pelo painel/CLI).

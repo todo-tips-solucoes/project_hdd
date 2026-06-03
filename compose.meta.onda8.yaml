@@ -1,0 +1,21 @@
+# Override da META-ONDA 8 (Epic 7, Fase 2 — Story 7.16).
+#
+# Endereça a família-F3 (observabilidade): a projeção em app.waves não reflete
+# n_corrections (vai só p/ métrica) e fica presa em 'planned' quando a onda falha.
+# É um fix na PROJEÇÃO (worker/runner.py bridge + adapters/db/repository.py), não
+# uma função pura nem um oracle.
+#
+# verify = DoD COMPLETO (como a onda 4), SEM oracle (a spec é explícita). Os testes
+# unitários do agente (com repo fake) rodam no verify; a INTEGRAÇÃO (Postgres real,
+# test_gate_roundtrip.py) NÃO roda no sandbox (--network none) → é validada no GATE
+# pelo CI completo (lição do PR #33: exigir 'Integração' verde, mergear sem --admin).
+#
+# Tools já no meta-sandbox; worker com F2 (rebuild da onda 4). Sem rebuild.
+#
+# Uso:
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.onda8.yaml up -d
+services:
+  worker-meta:
+    environment:
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && ruff check . && MYPYPATH=src mypy && PYTHONPATH=src lint-imports && python -m pytest -q'
+      HDD_CLAUDE_TIMEOUT_S: "1200"
