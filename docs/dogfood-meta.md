@@ -354,3 +354,35 @@ aceitação, não só DoD+drift. **F9** → forçar a regeneração canônica do
 prompt/wrapper) **ou** regenerar o `openapi.json` automaticamente no nó de PR **ou** tornar o
 drift-check tolerante à ordenação (normalizar). O hand-edit do agente é hoje o gargalo de
 contract-first no loop autônomo.
+
+### Meta-onda 10 — passo de codegen no loop (endereça F9) (Story 7.18, 2026-06-03)
+
+Endereça o **F9** com a correção de raiz: artefatos derivados (ex.: `openapi.json`) passam a ser
+**regenerados pelo sistema**, não editados pelo agente. Nova config `HDD_CODEGEN_COMMAND` (opcional):
+o nó `verify` roda o codegen no sandbox **antes** do `verify_command`, sobre o `/workspace` (escrita
+in-place persiste até o commit do nó `pr`) → o contrato fica **autoritativo por construção**, e o
+hand-edit do agente é sobrescrito. Falha de codegen → loop de correção (como o verify). Vazio →
+desligado (retrocompatível).
+
+| Campo | Valor |
+|---|---|
+| Onda | `019e8f6e-b7ed` · worker com F2 · verify = DoD + **oracle** (sem drift — não toca a API) |
+| Desfecho | **awaiting_gate one-shot** (`->execute=1`, `n_corr=0`, verify exit 0) — **sem fix manual** |
+| PR | #37 → **CI 6/6 verde** → merged `--squash` **sem `--admin`** → `b8ed9d8` |
+
+**Primeira meta-onda full-autônoma de uma feature de orquestrador.** Mudança: `Settings.codegen_command`
++ `make_sandbox_codegen` (espelha `make_sandbox_verifier`) + param `codegen` no `WaveOrchestrator`
+(`_verify_node` roda codegen antes do verify; `(False, fb)` → `CORRECTING` + `verify_feedback`) + wiring
+no `factory.open_orchestrator` (constrói o codegen quando `codegen_command` setado). Código idiomático,
+**one-shot** sob DoD + oracle oculto (acceptance que dirige o `WaveOrchestrator` com fakes, offline,
+validado RED/GREEN). A onda mexe só em Python (orquestrador/settings), **não na API** → sem o drift que
+derrubou a onda 9 → converge limpa.
+
+**Por que isto fecha o F9:** com `HDD_CODEGEN_COMMAND = cd backend && PYTHONPATH=src python
+scripts/export_openapi.py openapi.json` no worker, qualquer onda futura que mude a API regenera o
+`openapi.json` canonicamente no loop — o CI "OpenAPI sem drift" passa sem depender do agente. **Ativação:**
+após o merge, `hdd-worker:latest` foi **rebuildado** (F5) com o codegen; as próximas meta-ondas setam
+`HDD_CODEGEN_COMMAND` no override de compose. (Deploy de prod = passo separado, fora de escopo / PC-2.)
+
+**F9 ENDEREÇADO** ✅ — a regeneração de artefatos derivados é responsabilidade do sistema; a prova viva
+será a próxima onda que mude a API (regenera o contrato sem hand-edit).
