@@ -1,0 +1,28 @@
+# Override da META-ONDA 5 (Epic 7, Fase 2 — Story 7.13).
+#
+# A culminação do arco: oracle OCULTO que força CONVERGÊNCIA às cegas, agora que o
+# loop de correção usa o feedback do verify (F2, PR #28/`9a7efa4`, e o worker foi
+# rebuildado na onda 4 → roda o código com F2). É o teste que a Meta-onda 2 não
+# completou (lá o loop era cego e estourava o timeout).
+#
+# Feature-veículo: format_duration_human (domain/duration.py), spec VISÍVEL mas
+# subespecificada no formato exato. O oracle (host: /var/lib/hdd-oracles/duration)
+# fixa o formato; o execute implementa sem ver os casos → verify vermelho → o
+# output do pytest (diffs expected-vs-actual) vai ao prompt da correção → converge.
+#
+# verify = ORACLE-ONLY (isola o sinal da convergência; sem thrash com os testes do
+# próprio agente). O DoD completo roda no GATE HUMANO. Tools já no meta-sandbox →
+# sem rebuild. Validado: impl correta → 16 passed (exit 0); ingênua → 11 failed (exit 1).
+#
+# Uso (note: SEM os outros overrides de onda; worker usa hdd-worker:latest c/ F2):
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.onda5.yaml up -d
+services:
+  worker-meta:
+    environment:
+      HDD_ORACLE_DIR: ${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/duration}
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && PYTHONPATH=src python -m pytest /oracle -q'
+      HDD_CLAUDE_TIMEOUT_S: "1200"
+    volumes:
+      # bind idêntico host↔worker: o `docker run -v <oracle>:/oracle:ro` do verify
+      # roda no daemon do HOST (ADR 0004), então o path precisa existir no host.
+      - ${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/duration}:${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/duration}:ro

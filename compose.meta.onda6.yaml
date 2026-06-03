@@ -1,0 +1,24 @@
+# Override da META-ONDA 6 (Epic 7, Fase 2 — Story 7.14).
+#
+# Objetivo: FORÇAR a convergência às cegas que a Meta-onda 5 não exercitou (o
+# agente one-shotou um formato "natural"). Aqui o oracle fixa uma convenção
+# DELIBERADAMENTE não-óbvia para `format_bytes` (base 1024, sufixos KB/MB/..,
+# EXATAMENTE 2 casas decimais) — o agente quase certamente diverge na 1ª passada,
+# mas aprende a regra pelos diffs do pytest (F2) e converge.
+#
+# Validado no sandbox: impl correta → 15 passed (exit 0); convenção default
+# (decimal 1000, 1 casa) → 9 failed (exit 1) — diverge em base/casas/threshold.
+#
+# verify = ORACLE-ONLY; worker com F2 (rebuild da onda 4); timeout 1200; sem rebuild
+# do meta-sandbox.
+#
+# Uso:
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.onda6.yaml up -d
+services:
+  worker-meta:
+    environment:
+      HDD_ORACLE_DIR: ${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/bytes}
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && PYTHONPATH=src python -m pytest /oracle -q'
+      HDD_CLAUDE_TIMEOUT_S: "1200"
+    volumes:
+      - ${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/bytes}:${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/bytes}:ro

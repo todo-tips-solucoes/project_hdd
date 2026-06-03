@@ -207,3 +207,53 @@ barra-extra/partes-vazias/`.`/`..`/chars inválidos) + `field_validator` no `rep
 a Meta-onda 2 não conseguiu entregar.**
 
 **F4 ENDEREÇADO** ✅ — o verify autônomo do meta-dogfood agora enforça o DoD completo.
+
+### Meta-onda 5 — oracle oculto, tentativa de convergência às cegas (Story 7.13, 2026-06-03)
+
+Primeira onda com oracle oculto **rodando o worker com F2** (loop com feedback). Feature-veículo:
+`format_duration_human` (`domain/duration.py`), spec visível subespecificada no formato; oracle
+oculto (`/var/lib/hdd-oracles/duration`, 13+3 casos) fixando o formato. verify = oracle-only.
+
+| Campo | Valor |
+|---|---|
+| Onda | `019e8def-9761` · worker **com F2** |
+| Desfecho | **awaiting_gate one-shot** (`->execute=1`, `n_corr=0`, verify exit 0) |
+| PR | #30 → merged `--squash` → `0d50d08` (DoD verde, sem fix manual) |
+
+- **Objetivo (convergência às cegas) NÃO exercitado:** o agente acertou o formato na 1ª tentativa —
+  a convenção escolhida (omitir zeros, `0s`, espaço) era a *natural*, então não houve divergência
+  para corrigir. 3º one-shot seguido de feature-veículo.
+- **Estado da convergência:** a *máquina* está verificada (teste unitário
+  `test_feedback_da_verificacao_injetado_na_correcao` da onda 3 + escalação limpa da onda-4-run1
+  sob loop cego), mas **observar fire→feedback→fix→verde ao vivo** segue elusivo: quando o loop
+  disparou (ondas 2, 4-run1) o worker era pré-F2; com F2, o agente one-shota.
+- **Encaminhamento → Meta-onda 6 (Story 7.14):** oracle de convenção **não-óbvia** (`format_bytes`:
+  base 1024, sufixos `KB`, 2 casas decimais) para *garantir* divergência na 1ª tentativa → forçar
+  a convergência pelo feedback.
+
+### Meta-onda 6 — convergência às cegas, DEMONSTRADA (Story 7.14, 2026-06-03)
+
+**O resultado que todo o arco perseguia.** Oracle de convenção não-óbvia (`format_bytes`: base 1024,
+sufixos `KB`, 2 casas decimais) projetado para *garantir* divergência na 1ª passada. Worker com F2.
+
+| Campo | Valor |
+|---|---|
+| Onda | `019e8e2f-3a73` · worker com F2 · verify oracle-only |
+| **Trajetória** | `execute→verify(exit 2)→correct→execute→verify(exit 1)→correct→execute→verify(exit 0)→awaiting_gate` |
+| Loop | **disparou 2×** (`->execute=3`) — **CONVERGIU** |
+| PR | #31 → merged `--squash` → `85feab1` |
+
+**A demonstração ao vivo do loop de auto-correção:** o `execute` nunca viu o oracle; convergiu só
+com o feedback do verify (F2) — 1º um **erro estrutural/import** (exit 2), depois os **diffs de
+formato** (exit 1: `"1.0 MB"` vs `"1.00 MB"`, base 1024), e então **verde** (exit 0). Contraste
+direto com a Meta-onda 2 (mesmas falhas → timeout cego, pré-F2). Fecha o arco F2→F4→convergência.
+
+- **F6 (novo) — verify oracle-only não incentiva os testes do agente.** O agente **não escreveu**
+  `test_bytesize.py` (a tarefa pedia) — como o verify roda só `/oracle`, os testes do próprio agente
+  não são exercitados. Corrigido no gate humano (`test_bytesize.py` derivado da spec). *Mitigação
+  futura:* verify do meta poderia rodar oracle **+** a suíte do agente, ou o gate sempre exige os
+  testes. (Sob full-DoD verify — onda 4 — o agente escreveu os testes; o sinal importa.)
+- **Projeção `n_corrections`:** `app.waves.n_corrections=0` apesar de 2 correções reais (visível só
+  no checkpointer, `->execute=3`) — mesma família do F3 (projeção incompleta). Candidato a hardening.
+
+**Convergência às cegas: DEMONSTRADA** ✅ — encerra o objetivo central do meta-dogfood do Epic 7.
