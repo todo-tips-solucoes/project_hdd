@@ -9,7 +9,7 @@ from pathlib import Path
 from hdd.adapters.db.gap_store import GapDetail, gaps_to_markdown
 from hdd.domain import wave as wv
 from hdd.observability.metrics import REGISTRY
-from hdd.worker.runner import _safe_record_gap, bridge_after_wave
+from hdd.worker.runner import _safe_project_failed, _safe_record_gap, bridge_after_wave
 
 
 def _sample(name: str, **labels: str) -> float:
@@ -18,10 +18,12 @@ def _sample(name: str, **labels: str) -> float:
 
 class FakeRepo:
     def __init__(self) -> None:
-        self.synced: list[tuple[str, wv.WaveState]] = []
+        self.synced: list[tuple[str, wv.WaveState, int | None]] = []
 
-    async def sync_wave_state(self, thread_id: str, state: wv.WaveState) -> None:
-        self.synced.append((thread_id, state))
+    async def sync_wave_state(
+        self, thread_id: str, state: wv.WaveState, n_corrections: int | None = None
+    ) -> None:
+        self.synced.append((thread_id, state, n_corrections))
 
 
 class FakeGateStore:
@@ -64,7 +66,7 @@ async def test_reached_gate_conta_sucesso_autonomo_e_correcoes():
     assert _sample("hdd_wave_corrections_count") == base_cnt + 1  # uma onda observada
     assert _sample("hdd_wave_corrections_sum") == base_sum + 2  # 2 correções
     assert gs.opened  # sucesso autônomo abre o gate de merge
-    assert repo.synced == [("w1", wv.WaveState.AWAITING_GATE)]
+    assert repo.synced == [("w1", wv.WaveState.AWAITING_GATE, 2)]
 
 
 async def test_escalated_conta_como_nao_autonomo_e_nao_abre_gate_de_merge():
@@ -120,6 +122,44 @@ async def test_sucesso_autonomo_nao_registra_gap():
 async def test_safe_record_gap_nao_propaga_erro_de_db():
     # registro de gap é best-effort: não pode mascarar/quebrar o fluxo da onda.
     await _safe_record_gap(FakeGapStore(fail=True), "w", "failure", "x")  # type: ignore[arg-type]
+
+
+# --- n_corrections e _safe_project_failed ------------------------------------
+
+async def test_bridge_passa_n_corrections_ao_sync():
+    repo, gs = FakeRepo(), FakeGateStore()
+    await bridge_after_wave(
+        repo,  # type: ignore[arg-type]
+        gs,  # type: ignore[arg-type]
+        "w20",
+        {"wave_state": str(wv.WaveState.AWAITING_GATE), "n_corrections": 3, "pr_url": "http://pr/x"},
+    )
+    assert repo.synced == [("w20", wv.WaveState.AWAITING_GATE, 3)]
+
+
+async def test_bridge_passa_zero_quando_ausente():
+    repo, gs = FakeRepo(), FakeGateStore()
+    await bridge_after_wave(
+        repo,  # type: ignore[arg-type]
+        gs,  # type: ignore[arg-type]
+        "w21",
+        {"wave_state": str(wv.WaveState.ESCALATED)},
+    )
+    assert repo.synced == [("w21", wv.WaveState.ESCALATED, 0)]
+
+
+async def test_safe_project_failed_projeta_failed():
+    repo = FakeRepo()
+    await _safe_project_failed(repo, "w22")  # type: ignore[arg-type]
+    assert repo.synced == [("w22", wv.WaveState.FAILED, None)]
+
+
+async def test_safe_project_failed_nao_propaga_excecao():
+    class FailRepo:
+        async def sync_wave_state(self, *_a: object, **_kw: object) -> None:
+            raise RuntimeError("db down")
+
+    await _safe_project_failed(FailRepo(), "w23")  # type: ignore[arg-type]
 
 
 def _gap(**kw: object) -> GapDetail:

@@ -74,7 +74,12 @@ class Repository:
         await self._emit(EventType.WAVE_STARTED, wid, {"session_id": session_id})
         return wid
 
-    async def sync_wave_state(self, wave_id: str, target: wave_fsm.WaveState) -> None:
+    async def sync_wave_state(
+        self,
+        wave_id: str,
+        target: wave_fsm.WaveState,
+        n_corrections: int | None = None,
+    ) -> None:
         """Projeta o estado da onda a partir do SoT (checkpoint LangGraph) — Story 6.2.
 
         O checkpoint é a FSM durável: ao avançar o grafo, o orquestrador já validou
@@ -89,6 +94,8 @@ class Repository:
             if row is None:
                 raise DomainError(f"onda inexistente: {wave_id}")
             row.state = target
+            if n_corrections is not None:
+                row.n_corrections = n_corrections
             await s.commit()
 
     async def all_sessions(self) -> list[str]:
