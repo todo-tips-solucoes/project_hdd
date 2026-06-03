@@ -170,3 +170,40 @@ real (o output do pytest no prompt) em vez de às cegas.
   sorte; a 7.11 teve 3 E501). **Melhoria futura (candidata a meta-onda):** verify roda o DoD
   completo (`ruff check . && mypy && lint-imports && pytest`) — o loop passaria a auto-corrigir
   lint/tipo também (agora que o feedback do verify é propagado, F2 fechado, isso de fato convergiria).
+
+### Meta-onda 4 — verify do meta roda o DoD completo (Story 7.12, 2026-06-03)
+
+Endereça o **F4**: `HDD_VERIFY_COMMAND` passou a rodar o DoD completo
+(`cd backend && ruff check . && MYPYPATH=src mypy && PYTHONPATH=src lint-imports && python -m pytest -q`),
+validado verde (main limpa) e vermelho (erro de lint) no sandbox antes de configurar. Tools já no
+`hdd-meta-sandbox` (`/deps/.venv/bin`) → sem rebuild do sandbox. Feature-veículo: `parse_repo_slug`
+(a que a Meta-onda 2 não entregou), spec visível, sem oracle. `HDD_CLAUDE_TIMEOUT_S=1200`.
+
+**Rodou duas vezes** (a 1ª expôs o F5):
+
+| Run | Worker | Desfecho | Lição |
+|---|---|---|---|
+| 1 (`019e8d4a-2333`) | `hdd-worker:latest` **stale** (pré-F2, build 06-02) | **escalated** — loop disparou 4× (`->execute=4`), 4 verify `exit_code=1` (DoD real), esgotou `max_corrections=3` → escalou **limpo** (sem branch/PR) | **F5** |
+| 2 (`019e8d71-c36f`) | `hdd-worker` **rebuildado** da main (com F2) | **awaiting_gate one-shot** — verify (DoD completo) exit 0; PR #29 | **F4 provado** |
+
+- **F5 (novo) — merge ≠ deploy também no worker do meta.** Após uma onda auto-modificante mergear,
+  o `worker-meta` continua na imagem antiga até `docker build -t hdd-worker:latest --target worker
+  backend` + recriar o container. A Run 1 rodou o loop **cego** (pré-F2) por isso → escalou. Depois
+  do rebuild, o worker passou a ter `Verifier=Callable[[str],tuple[bool,str]]` + `verify_feedback`.
+  *Salvaguarda verificável:* rebuildar+recriar o `worker-meta` após cada meta-onda que toca o
+  worker/orquestrador, antes da próxima onda depender do novo comportamento.
+- **Achado positivo (Run 1):** sob o full-DoD verify, o loop **escala limpo** ao esgotar N (vs o
+  **timeout** da Meta-onda 2) — o DoD falha rápido (exit 1), então o loop cicla e escala em vez de
+  pendurar. Melhora de comportamento mensurável.
+
+**Run 2 — gate humano (DoD no branch):** ruff ✓ · mypy --strict ✓ (75) · import-linter ✓ (4/4) ·
+pytest ✓ (135). **Sem fix manual** (≠ PR #28, que teve 3 E501 corrigidos no gate) — porque o
+**verify=DoD-completo barrou tudo antes do gate**. É a prova end-to-end do F4. PR #29 → merged
+`--squash` → `24ea764` na `main`.
+
+**Mudança entregue (PR #29):** `parse_repo_slug` em `domain/vcs.py` (puro; rejeita vazio/espaços/
+barra-extra/partes-vazias/`.`/`..`/chars inválidos) + `field_validator` no `repo_slug` em
+`settings.py` (fail-fast em config inválida) + testes parametrizados. **Fecha também a feature que
+a Meta-onda 2 não conseguiu entregar.**
+
+**F4 ENDEREÇADO** ✅ — o verify autônomo do meta-dogfood agora enforça o DoD completo.

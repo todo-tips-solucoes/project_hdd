@@ -1,0 +1,27 @@
+# Override da META-ONDA 4 (Epic 7, Fase 2 — Story 7.12).
+#
+# Endereça o achado F4 da Meta-onda 3: o verify do meta rodava só `pytest`, então
+# lint/tipo escapavam ao loop autônomo. Agora que o F2 está fechado (o verify
+# propaga o output ao nó de correção, PR #28/`9a7efa4`), o verify pode rodar o
+# **DoD completo** e o loop passa a auto-corrigir lint/tipo/imports também.
+#
+# verify = DoD completo, na MESMA ordem do gate humano:
+#   ruff check .  &&  mypy (MYPYPATH=src)  &&  lint-imports (PYTHONPATH=src)  &&  pytest
+# A cadeia `&&` para no 1º erro → o feedback ao loop é focado no que falhou.
+# Validado contra a `main` limpa (exit 0) e contra um erro de lint (ruff reporta e
+# para a cadeia). Os tools já vivem no hdd-meta-sandbox (/deps/.venv/bin) → SEM rebuild.
+#
+# MYPYPATH/PYTHONPATH=src: no sandbox o projeto NÃO é instalado (--no-install-project);
+# o código vem do clone em /workspace/backend/src. pytest usa pyproject pythonpath=src;
+# mypy/import-linter precisam do env para resolver o pacote `hdd`.
+#
+# SEM oracle oculto: a feature-veículo é construída com spec visível (o agente escreve
+# os próprios testes); o ponto da onda é o verify = DoD completo, não um oracle.
+#
+# Uso (note: SEM compose.meta.oracle.yaml; com onda4 no lugar do onda3):
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.onda4.yaml up -d
+services:
+  worker-meta:
+    environment:
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && ruff check . && MYPYPATH=src mypy && PYTHONPATH=src lint-imports && python -m pytest -q'
+      HDD_CLAUDE_TIMEOUT_S: "1200"
