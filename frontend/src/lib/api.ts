@@ -9,6 +9,7 @@ export type User = components["schemas"]["User"];
 export type WavesSnapshot = components["schemas"]["WavesSnapshot"];
 export type SessionOut = components["schemas"]["SessionOut"];
 export type WaveOut = components["schemas"]["WaveOut"];
+export type HarnessSummary = components["schemas"]["HarnessSummary"];
 export type GateOut = components["schemas"]["GateOut"];
 export type GateDecisionOut = components["schemas"]["GateDecisionOut"];
 export type FeatureStart = components["schemas"]["FeatureStart"];
@@ -41,6 +42,9 @@ export const logout = (): Promise<unknown> =>
 
 export const getWaves = (): Promise<WavesSnapshot> =>
   req<WavesSnapshot>("/api/waves");
+
+export const getHarness = (): Promise<HarnessSummary> =>
+  req<HarnessSummary>("/api/harness");
 
 export const startFeature = (task: string): Promise<FeatureStarted> =>
   req<FeatureStarted>("/api/features", {

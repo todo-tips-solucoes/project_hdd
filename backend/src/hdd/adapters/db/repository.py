@@ -5,7 +5,7 @@ um caller errado não consegue gravar uma transição ilegal.
 """
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from hdd.contracts.events import EventType, make_event
@@ -13,9 +13,10 @@ from hdd.contracts.ports import AuditSink
 from hdd.domain import session as session_fsm
 from hdd.domain import wave as wave_fsm
 from hdd.domain.errors import DomainError
+from hdd.domain.gate import GateStatus
 from hdd.observability.metrics import sessions_active
 
-from .models import SessionRow, WaveRow
+from .models import GateRow, SessionRow, WaveRow
 
 
 class Repository:
@@ -119,3 +120,13 @@ class Repository:
                 ).order_by(WaveRow.created_at)
             )
             return [(r[0], r[1], r[2], r[3]) for r in result.all()]
+
+    async def count_pending_gates(self) -> int:
+        """Conta gates com status PENDING (para o sumário do harness)."""
+        async with self._sm() as s:
+            result = await s.execute(
+                select(func.count())
+                .select_from(GateRow)
+                .where(GateRow.status == str(GateStatus.PENDING))
+            )
+            return result.scalar_one()

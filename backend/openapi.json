@@ -220,6 +220,27 @@
         }
       }
     },
+    "/api/harness": {
+      "get": {
+        "tags": [
+          "harness"
+        ],
+        "summary": "Get Harness",
+        "operationId": "get_harness_api_harness_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HarnessSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/events/stream": {
       "get": {
         "tags": [
@@ -539,6 +560,57 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HarnessSummary": {
+        "properties": {
+          "total_waves": {
+            "type": "integer",
+            "title": "Total Waves"
+          },
+          "by_state": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "By State"
+          },
+          "total_corrections": {
+            "type": "integer",
+            "title": "Total Corrections"
+          },
+          "mean_corrections": {
+            "type": "number",
+            "title": "Mean Corrections"
+          },
+          "reached_gate": {
+            "type": "integer",
+            "title": "Reached Gate"
+          },
+          "escalated": {
+            "type": "integer",
+            "title": "Escalated"
+          },
+          "failed": {
+            "type": "integer",
+            "title": "Failed"
+          },
+          "gates_pending": {
+            "type": "integer",
+            "title": "Gates Pending"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_waves",
+          "by_state",
+          "total_corrections",
+          "mean_corrections",
+          "reached_gate",
+          "escalated",
+          "failed",
+          "gates_pending"
+        ],
+        "title": "HarnessSummary"
       },
       "SessionOut": {
         "properties": {
