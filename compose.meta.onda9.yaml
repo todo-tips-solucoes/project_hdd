@@ -1,0 +1,31 @@
+# Override da META-ONDA 9 (Epic 7, Fase 2 — Story 7.17) — 2ª tentativa, com ORACLE.
+#
+# Feature-veículo: indicadores do harness no painel. Escopo do loop autônomo = o
+# BACKEND (endpoint JSON GET /api/harness + HarnessSummary, read-model derivado do
+# DB). Frontend (Node) é HÍBRIDO: completado pelo operador no gate, CI "Frontend"
+# verde antes do merge.
+#
+# ⚠️ Por que ORACLE nesta tentativa (achado F7): a 1ª tentativa (sem oracle) abriu
+# um PR no-op (docs-only) que PASSOU o verify — o DoD seguia verde e o openapi.json
+# não tinha drift porque NADA do backend mudou. O verify (DoD + drift) prova "nada
+# quebrou + contrato consistente", NÃO "a feature pedida existe". O oracle oculto
+# (montado /oracle:ro só no verify, invisível ao execute) é o acceptance gate que
+# FALHA se o endpoint não existir / o contrato divergir.
+#
+# verify = DoD COMPLETO  +  ORACLE de aceitação (pytest /oracle)  +  drift do
+# OpenAPI (compare em Python, pois o meta-sandbox não tem git). Validado:
+#   - oracle: RED no main limpo (3 failed), GREEN na referência (3 passed);
+#   - drift: verde (HEAD limpo) / vermelho (openapi.json perturbado);
+# tudo nas flags reais do runner (uid 10001, --read-only, --tmpfs /tmp, --net none).
+#
+# HDD_ORACLE_DIR aponta p/ um dir no HOST (o worker monta -v <dir>:/oracle:ro no
+# docker run do verify). Oracle: /var/lib/hdd-oracles/harness/test_oracle_harness.py
+#
+# Uso:
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.onda9.yaml up -d
+services:
+  worker-meta:
+    environment:
+      HDD_ORACLE_DIR: /var/lib/hdd-oracles/harness
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && ruff check . && MYPYPATH=src mypy && PYTHONPATH=src lint-imports && python -m pytest -q && PYTHONPATH=src python -m pytest /oracle -p no:cacheprovider -q && PYTHONPATH=src python scripts/export_openapi.py /tmp/openapi.gen.json && { python -c "import sys;sys.exit(0 if open(sys.argv[1]).read()==open(sys.argv[2]).read() else 1)" openapi.json /tmp/openapi.gen.json || { echo DRIFT do contrato OpenAPI - rode PYTHONPATH=src python scripts/export_openapi.py openapi.json e commite o openapi.json >&2; false; }; }'
+      HDD_CLAUDE_TIMEOUT_S: "1200"

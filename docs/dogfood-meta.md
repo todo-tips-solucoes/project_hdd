@@ -307,3 +307,50 @@ gate exigi o **CI completo verde** (`gh pr checks`) — **Integração (Postgres
 Postgres real — e mergeei **sem `--admin`**. Sem o problema do #28 (regressão de integração mascarada).
 
 **Família-F3 ENDEREÇADA** ✅ — `app.waves` agora reflete correções e falhas (observável pelo painel/CLI).
+
+### Meta-onda 9 — indicadores do harness no painel (Story 7.17, 2026-06-03)
+
+Primeira meta-onda **full-stack** (backend + frontend) — exercita os **gates de drift** (OpenAPI +
+TS), a frente que faltava. Modelo **híbrido**: o HDD faz o backend (verificável no sandbox Python);
+o operador completa o frontend (Node, impossível no meta-sandbox) no gate. Feature: `GET /api/harness`
+→ `HarnessSummary` (read-model do DB) + indicadores no painel. **Duas tentativas, dois achados.**
+
+**Tentativa 1 — verify = DoD + drift do OpenAPI (sem oracle).** Onda `019e8ee2-bf5e` →
+**awaiting_gate one-shot**, mas o PR (#35) era um **NO-OP off-task**: o agente escreveu uma *story*
+de planejamento BMAD + um compose, **zero backend**. O verify passou trivialmente — sem mudança de
+código o DoD segue verde e o `openapi.json` não tem drift.
+
+> **Achado F7 — o verify (DoD + drift) NÃO detecta sub-implementação/no-op.** Prova "nada quebrou +
+> contrato consistente", não "a feature pedida existe". Sem **oracle de aceitação** da feature, um
+> no-op chega ao gate. Só o gate humano pegou. PR #35 **fechado**.
+
+**Tentativa 2 — verify = DoD + ORACLE de aceitação oculto + drift.** Oracle em
+`/var/lib/hdd-oracles/harness` (acceptance offline via FastAPI `TestClient` + `get_repository` fake —
+sem DB/rede), validado **RED** (main, 3 failed) / **GREEN** (referência) antes de enfileirar; prompt
+imperativo (proíbe docs, fixa arquivos+contrato). Onda `019e8efb-d652`: o agente implementou o backend
+**correto** (oracle + DoD verdes), mas **ESCALOU** após **4 verifies vermelhos** — *todos só no
+drift do `openapi.json`*.
+
+> **Achado F9 — o agente regenera o contrato À MÃO.** Editou o `openapi.json` (ordenação de
+> `components.schemas` divergente) em vez de rodar `export_openapi.py`. A geração é **determinística e
+> IDÊNTICA no worker e no meta-sandbox** (version-skew **F8 descartado**: fastapi 0.136.3 / pydantic
+> 2.13.4 nos dois) — teria casado byte-a-byte se rodasse o script. O drift-check (corretamente, como o
+> CI) barrou as 4 tentativas → escalou. **Convergência sob oracle DEMONSTRADA ao vivo** (`->execute=4`,
+> 3 correções via feedback F2), mas o agente insistiu no hand-edit no eixo do contrato.
+
+| Campo | Valor |
+|---|---|
+| Onda (entregue) | `019e8efb-d652` · worker com F2 · verify = DoD + oracle + drift |
+| Desfecho autônomo | **escalated** (4 verify exit 1, só drift do `openapi.json`) |
+| Gate | código do agente **salvo** (correto), `openapi.json` **regenerado canonicamente**, frontend (híbrido) completado pelo operador |
+| PR | #36 → **CI 6/6 verde** (incl. Integração + OpenAPI sem drift + Frontend) → merged `--squash` **sem `--admin`** → `4e4c126` |
+
+**Entregue:** `GET /api/harness` + `HarnessSummary` (`total_waves`, `by_state` das 8 chaves,
+`total/mean_corrections`, `reached_gate`/`escalated`/`failed`, `gates_pending`) +
+`Repository.count_pending_gates`; no frontend `getHarness()` + `HarnessIndicators` no painel.
+
+**Encaminhamento (candidatos a meta-onda):** **F7** → verify de *feature* deve incluir oracle de
+aceitação, não só DoD+drift. **F9** → forçar a regeneração canônica do contrato (proibir hand-edit no
+prompt/wrapper) **ou** regenerar o `openapi.json` automaticamente no nó de PR **ou** tornar o
+drift-check tolerante à ordenação (normalizar). O hand-edit do agente é hoje o gargalo de
+contract-first no loop autônomo.
