@@ -1,0 +1,82 @@
+# Override de DEV para o META-DOGFOOD (Epic 7, Fase 2 — Story 7.9).
+#
+# Sobe um worker de desenvolvimento ISOLADO que constrói features no PRÓPRIO
+# `projeto_hdd` (alvo todo-tips-solucoes/project_hdd), via PR + gate humano. NUNCA
+# é o worker de produção e NUNCA toca compose.prod.yaml/secrets de prod além de
+# ler os tokens montados read-only.
+#
+# Uso (projeto isolado `hdd_dev`, junto da postgres de dev do compose.yaml):
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml up -d
+#
+# Por que in-container (PC-1, ADR 0006 + Story 7.7): o nó `execute` roda DENTRO do
+# worker, cujo mount namespace inclui apenas /var/run/docker.sock (verify, ADR 0004)
+# e o HDD_WORKSPACE_ROOT (clones efêmeros) — a árvore de prod e os secrets de prod
+# NÃO são montados, então um Write absoluto do agente não os alcança (contenção por
+# construção). O driver de host (scripts/calibration_wave.py) é Fase-1-only.
+#
+# Salvaguardas Fase 2: PR + gate humano (6.8); workspace efêmero (6.6); pré-flight
+# de capacidade (ADR 0005 — swap + max_concurrent==1 + RAM); sem auto-deploy (PC-2).
+services:
+  # Migration one-shot contra a postgres de DEV (5433 no host / postgres:5432 na rede
+  # do projeto). Espelha o serviço `migrate` de prod, mas com DSN de dev via env (NÃO
+  # monta o secret hdd_pg_dsn de prod — isso apontaria o dev para o banco de produção).
+  migrate-meta:
+    image: ${HDD_IMAGE_API:-hdd-api:latest}
+    command: ["alembic", "upgrade", "head"]
+    mem_limit: 512m
+    mem_reservation: 128m
+    environment:
+      HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
+      HDD_PG_DSN: postgresql://hdd:hdd_dev@postgres:5432/hdd
+    depends_on:
+      postgres: {condition: service_healthy}
+    restart: "no"
+
+  # Worker de meta-dogfood. Espelha o worker de prod (docker.sock + workspace efêmero,
+  # group_add do gid docker, secrets de token), com a env do meta-dogfood:
+  #   - alvo = todo-tips-solucoes/project_hdd (URL SEM token: o entrypoint roda
+  #     `gh auth setup-git`, então o git autentica pelo credential helper do gh a
+  #     partir de GH_TOKEN — token NÃO fica visível em `docker inspect`).
+  #   - sandbox do verify = hdd-meta-sandbox:latest (Python 3.13 + deps do backend),
+  #     que roda a suíte do projeto_hdd com `--network none`.
+  worker-meta:
+    image: ${HDD_IMAGE_WORKER:-hdd-worker:latest}
+    # Teto igual ao de prod: hospeda os `claude -p` (pico de RSS ~1.5-1.7G). Com
+    # max_concurrent=1 (pré-flight ADR 0005) só roda 1 claude por vez.
+    mem_limit: 6g
+    mem_reservation: 1g
+    environment:
+      HDD_LOG_LEVEL: ${HDD_LOG_LEVEL:-INFO}
+      # Banco de DEV (NUNCA o de prod). O CLI produtor (`hdd start`) precisa enfileirar
+      # neste MESMO banco para o worker consumir.
+      HDD_PG_DSN: postgresql://hdd:hdd_dev@postgres:5432/hdd
+      # Modelo da onda — decisão do operador (sonnet = mais capaz; haiku = mais barato).
+      HDD_MODEL: ${HDD_MODEL:-sonnet}
+      # Alvo da meta-onda (SEM token na URL; auth pelo credential helper do gh).
+      HDD_REPO_URL: ${HDD_META_REPO_URL:-https://github.com/todo-tips-solucoes/project_hdd.git}
+      HDD_REPO_SLUG: ${HDD_META_REPO_SLUG:-todo-tips-solucoes/project_hdd}
+      # Verify roda a suíte do projeto_hdd no meta-sandbox (deps no venv da imagem,
+      # código do /workspace montado; pyproject pythonpath=src vive em backend/).
+      HDD_SANDBOX_IMAGE: ${HDD_META_SANDBOX_IMAGE:-hdd-meta-sandbox:latest}
+      HDD_SANDBOX_NETWORK: none
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && python -m pytest -q'
+      HDD_CLAUDE_TIMEOUT_S: "600"
+      HDD_WORKSPACE_ROOT: ${HDD_WORKSPACE_ROOT:-/var/lib/hdd-workspaces}
+    secrets:
+      - hdd_gh_token            # abre PR + autentica git (entrypoint → GH_TOKEN + gh auth setup-git)
+      - hdd_claude_oauth_token  # claude -p (entrypoint → CLAUDE_CODE_OAUTH_TOKEN)
+    volumes:
+      # verify faz `docker run` do sandbox no daemon do host (ADR 0004).
+      - /var/run/docker.sock:/var/run/docker.sock
+      # workspace num caminho idêntico host↔worker (o mount do sandbox é do host).
+      - ${HDD_WORKSPACE_ROOT:-/var/lib/hdd-workspaces}:${HDD_WORKSPACE_ROOT:-/var/lib/hdd-workspaces}
+    group_add:
+      - "${HDD_DOCKER_GID:-988}"  # gid do grupo docker no host (acesso ao socket)
+    depends_on:
+      postgres: {condition: service_healthy}
+      migrate-meta: {condition: service_completed_successfully}
+    restart: unless-stopped
+
+secrets:
+  hdd_gh_token: {file: ./secrets/hdd_gh_token}
+  hdd_claude_oauth_token: {file: ./secrets/hdd_claude_oauth_token}

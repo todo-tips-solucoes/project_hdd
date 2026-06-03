@@ -1,6 +1,6 @@
 # Story 7.9: Meta-onda 1 (Fase 2) — verify com oracle oculto (testes não visíveis ao execute)
 
-Status: blocked
+Status: done (meta-onda one-shot → PR #27 ✅ merged `fc8d2b2`; gate humano = GO)
 
 > **Bloqueada pela Story 7.8** (meta-sandbox + worker in-container). Renumerada de 7.8 → 7.9:
 > a análise de 2026-06-03 mostrou que dirigir qualquer meta-onda no `projeto_hdd` exige
@@ -72,6 +72,9 @@ so that eu valide o pipeline de auto-modificação (Fase 2) num alvo real **e** 
 
 ### Agent Model Used
 
+Meta-onda construída por `claude` (modelo **sonnet**, driver `subscription`) dentro do
+`worker-meta` (in-container). Direção/revisão por Claude Code (operador no gate).
+
 ### Debug Log References
 
 **HALT — pré-requisitos de execução ausentes (2026-06-03), antes de gastar quota:**
@@ -83,4 +86,25 @@ so that eu valide o pipeline de auto-modificação (Fase 2) num alvo real **e** 
 
 ### Completion Notes List
 
+- **Infra in-container montada (sem quota):** `compose.meta.yaml` (override de dev `-p hdd_dev`)
+  espelha o worker de prod com env do meta-dogfood; URL do repo **sem token** (auth pelo
+  credential helper do `gh`, via `gh auth setup-git` do entrypoint — token fora do `docker inspect`).
+  Stack dev (postgres 5433 + migrate + `worker-meta`) no ar, isolada da produção.
+- **Pré-flight de capacidade verde** com a função real `evaluate_capacity` (swap 4095MB ·
+  MemAvailable 13708MB · `max_concurrent=1`).
+- **Meta-onda one-shot:** `reached_gate`, **0 correções**, lease liberado. PR #27 (+61/−0).
+- **Gate humano = GO (merged):** ruff ✓ · mypy --strict ✓ · import-linter ✓ (boundaries
+  preservados) · pytest ✓ (113). Retrocompat asseverada por teste. Operador aprovou; PR #27
+  mergeado `--squash` → `fc8d2b2` na `main` (PR estava _draft_ → marcado ready no gate).
+- **Gap da 7.5 endereçado:** oracle oculto disponível no `verify` (`HDD_ORACLE_DIR`) para
+  ondas futuras exercitarem o loop de correção de verdade.
+
 ### File List
+
+**Neste repo (operacional, Story 7.9):**
+- `compose.meta.yaml` (NEW) — override de dev do worker de meta-dogfood.
+- `docs/dogfood-meta.md` (UPDATE) — registro da Meta-onda 1.
+
+**No PR #27 (feita pelo HDD, revisada no gate — não commitada aqui):**
+- `backend/src/hdd/adapters/sandbox/runner.py`, `.../verifier.py`, `backend/src/hdd/config/settings.py`,
+  `backend/tests/unit/test_sandbox_runner.py` (NEW), `backend/tests/unit/test_verifier.py`.

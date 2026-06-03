@@ -59,4 +59,41 @@ e gate confirmados antes de cada onda. Ver `docs/definition-of-done.md`.
 
 ## Resultados das meta-ondas
 
-_(a preencher conforme as meta-ondas rodarem — desfecho, correções, PR, decisão do gate)_
+### Meta-onda 1 — oracle oculto no nó `verify` (Story 7.9, 2026-06-03)
+
+**Primeira meta-onda real** do meta-dogfood: o HDD construiu uma feature no próprio
+`projeto_hdd`, via PR + gate humano, pelo caminho **in-container** (worker `worker-meta` do
+`compose.meta.yaml`, projeto isolado `hdd_dev`).
+
+| Campo | Valor |
+|---|---|
+| Tarefa | "implementar o oracle oculto no nó verify — `oracle_dir` opcional no `SandboxConfig`, mount `-v <oracle>:/oracle:ro` só no verify, retrocompatível, com testes" |
+| Modelo | `sonnet` (driver `subscription` — 0 custo emitido) |
+| Caminho | in-container (`hdd start` → fila dev → `worker-meta`); **não** o driver de host (PC-1) |
+| Sandbox do verify | `hdd-meta-sandbox:latest` (`--network none`) — suíte do projeto_hdd verde |
+| Desfecho | `reached_gate` (one-shot) · **0 correções** · 0 escaladas · 0 leases vazados |
+| Onda | `019e8ba3-94d5-7783-9ac1-35f306d97e3b` |
+| PR | https://github.com/todo-tips-solucoes/project_hdd/pull/27 (+61/−0, 5 ficheiros) |
+| Pré-flight | swap 4095MB · MemAvailable 13708MB · `max_concurrent=1` — gate `evaluate_capacity` verde |
+
+**Revisão do gate humano (DoD verificado fora do verify):** o nó `verify` só roda `pytest`;
+a revisão rodou a suíte completa no branch do PR — **ruff ✓ · mypy --strict ✓ (74 ficheiros) ·
+import-linter ✓ (4 contratos, boundaries preservados) · pytest ✓ (113)**. Mudança mínima e
+**puramente aditiva**: `oracle_dir: str | None = None` no `SandboxConfig`; `_docker_cmd` injeta
+`-v <oracle>:/oracle:ro` antes da imagem só quando setado; `verifier` propaga `settings.oracle_dir`
+(env `HDD_ORACLE_DIR`); retrocompatibilidade **asseverada por teste** (cmd idêntico ao atual
+quando `oracle_dir=None`). O oracle é verify-only por construção (o `execute` não usa o
+`SandboxRunner`).
+
+**Decisão do gate:** ✅ **GO — merged** por decisão do operador (2026-06-03 04:09 UTC). PR #27
+em `--squash` → commit `fc8d2b2ac2d5384bcae7136d80e88697c6500362` na `main`, branch da onda
+removida. (O PR foi aberto como _draft_ pelo nó de PR do HDD; marcado ready no gate antes do
+merge — comportamento esperado da salvaguarda "sem auto-merge".)
+
+> ℹ️ Follow-up de deploy (fora desta story): o `worker` de **produção** só passa a usar o
+> oracle oculto após rebuild da imagem + restart (runbook de deploy). Prod não foi tocado aqui.
+
+**Gap da 7.5 (oracle visível) endereçado:** a capacidade de oracle oculto passa a existir no
+`verify` — ondas futuras podem montar a suíte autoritativa só no `verify` (`HDD_ORACLE_DIR`),
+deixando o `execute` implementar às cegas → o caminho `verify→CORRECTING→execute` pode disparar
+de verdade (esta onda foi one-shot por construir a feature cujos próprios testes são visíveis).
