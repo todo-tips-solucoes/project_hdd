@@ -40,7 +40,9 @@ async def test_feedback_da_verificacao_injetado_na_correcao():
     class RecordingLLM:
         def invoke(self, prompt: str) -> LlmResult:
             prompts.append(prompt)
-            return LlmResult(text="ok", session_id=None, exit_code=0, quota_exhausted=False, raw="ok")
+            return LlmResult(
+                text="ok", session_id=None, exit_code=0, quota_exhausted=False, raw="ok"
+            )
 
     tentativas = 0
 
@@ -95,7 +97,11 @@ async def test_pr_aberto_antes_do_gate():
 async def test_verificacao_reprovada_nao_abre_pr():
     vcs = FakeVcs()
     orch = WaveOrchestrator(
-        FakeLLM(), verify=lambda ws: (False, ""), checkpointer=MemorySaver(), max_corrections=1, vcs=vcs
+        FakeLLM(),
+        verify=lambda ws: (False, ""),
+        checkpointer=MemorySaver(),
+        max_corrections=1,
+        vcs=vcs,
     )
     out = await orch.run_wave("w-nopr", "x", workspace="/ws", branch="hdd/wave-w-nopr")
     assert out["wave_state"] == "escalated"

@@ -71,7 +71,10 @@ class WaveOrchestrator:
         prompt = f"Implemente conforme o plano:\n{state.get('plan', '')}"
         feedback = state.get("verify_feedback", "")
         if state.get("n_corrections", 0) > 0 and feedback:
-            prompt += f"\n\nA verificação anterior falhou com:\n{feedback}\nCorrija a implementação."
+            prompt += (
+                f"\n\nA verificação anterior falhou com:\n{feedback}\n"
+                "Corrija a implementação."
+            )
         self._llm.invoke(prompt)
         return {"wave_state": self._to(state, wv.WaveState.VERIFYING)}
 
