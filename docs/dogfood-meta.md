@@ -97,3 +97,76 @@ merge — comportamento esperado da salvaguarda "sem auto-merge".)
 `verify` — ondas futuras podem montar a suíte autoritativa só no `verify` (`HDD_ORACLE_DIR`),
 deixando o `execute` implementar às cegas → o caminho `verify→CORRECTING→execute` pode disparar
 de verdade (esta onda foi one-shot por construir a feature cujos próprios testes são visíveis).
+
+### Meta-onda 2 — loop de correção com oracle oculto (Story 7.10, 2026-06-03)
+
+Primeira onda a **exercitar** o oracle oculto às cegas. Feature-alvo: `parse_repo_slug` em
+`backend/src/hdd/domain/vcs.py`, com uma suíte-oracle **oculta** (`/var/lib/hdd-oracles/repo-slug/`,
+22 casos) montada só no `verify` via `HDD_ORACLE_DIR` + `compose.meta.oracle.yaml`.
+
+| Campo | Valor |
+|---|---|
+| Caminho | in-container (`worker-meta`, projeto `hdd_dev`) — PC-1 respeitado |
+| Onda | `019e8bf5-886f-7503-8cab-d150a8acf71e` |
+| Pré-flight | swap 4095MB · MemAvailable 13561MB · `max_concurrent=1` — `evaluate_capacity` verde |
+| Loop de correção | **DISPAROU** ✅ (`execute` rodou 2×; `verify→CORRECTING→execute`) — 1ª vez |
+| Desfecho | **FAILED** — a 2ª passada (correção) estourou o timeout de 600s do `claude`; sem PR |
+| Remote | falha limpa (sem branch `hdd/wave-*`, sem PR) |
+
+**Objetivo primário atingido** (observar o loop disparar num verify vermelho real — fecha o gap
+da 7.5 no mecanismo), mas a onda **não convergiu**. A investigação subsequente achou a causa-raiz.
+
+**Validação da infra (reprodução isolada, mesma imagem/flags):** `vcs.py` correto → 22 passed
+(exit 0); ingênuo → 10 failed (exit 1, assertions reais); ausente → exit 2. O oracle oculto e o
+caminho host↔sandbox **funcionam**.
+
+#### Achados (backlog de dogfood)
+
+- **F2 — feedback do verify descartado (DOMINANTE, vira Story 7.11).** O nó `verify`
+  (`adapters/sandbox/verifier.py:50-52`) devolve só `bool`: o `SandboxResult.stdout/stderr` (diffs
+  de assertion do pytest) é jogado fora. `WaveGraphState` (`adapters/orchestrator/wave.py:30-41`)
+  não tem campo de feedback, e o `_execute` (`wave.py:69-71`) re-invoca o LLM com o **mesmo prompt**
+  na correção. → O loop **corrige às cegas e não converge** (re-roda até N=3 ou timeout). Por isso
+  a 7.10 não convergiu mesmo com o loop tendo disparado.
+- **F1 — timeout apertado.** `HDD_CLAUDE_TIMEOUT_S=600` não dá folga a uma rodada de correção.
+  Secundário a F2 (sem feedback, mais tempo não resolve).
+- **F3 — observabilidade.** Numa falha por timeout, `app.waves.state` fica preso em `planned`
+  (a projeção do estado só roda no retorno bem-sucedido do `run_wave`); o operador só vê a falha
+  pelos logs do worker. Candidato a hardening futuro.
+
+> **Encaminhamento:** F2 vira a **Meta-onda 3 (Story 7.11)** — o HDD conserta o próprio loop de
+> correção (verify propaga o output; estado carrega o feedback; execute o injeta na correção).
+
+### Meta-onda 3 — o HDD conserta o próprio loop de correção (Story 7.11, 2026-06-03)
+
+Endereça o **F2** da Meta-onda 2: o HDD construiu, no próprio `projeto_hdd`, a propagação do
+feedback do verify para a correção. **Sem oracle** (verify = suíte completa); `HDD_CLAUDE_TIMEOUT_S=1200`.
+
+| Campo | Valor |
+|---|---|
+| Caminho | in-container (`worker-meta`, `hdd_dev`) — PC-1 respeitado |
+| Onda | `019e8cfe-0ca1-7f61-8013-f6de6ced3e62` |
+| Pré-flight | swap 4095MB · MemAvailable 13169MB · `max_concurrent=1` — verde |
+| Desfecho | **`awaiting_gate` one-shot** · 0 correções · verify (suíte completa) exit 0 |
+| PR | #28 (+70/−25, 5 ficheiros) → **merged `--squash`** → `9a7efa4` na `main` |
+
+**Mudança (revisada no gate):** `Verifier` passa a `Callable[[str], tuple[bool, str]]`; `verify`
+devolve `(False, stderr+stdout)` na reprovação; `WaveGraphState.verify_feedback`; `_execute`
+injeta o feedback no prompt **só quando `n_corrections>0`**. Teste novo assevera o feedback na 2ª
+passada e ausente na 1ª.
+
+**Gate humano (DoD no branch):** mypy --strict ✓ (74) · import-linter ✓ (4/4) · pytest ✓ (121).
+3 violações ruff E501 (linhas >100) — **corrigidas no gate** (reformatação cosmética, commit
+`c1c4be3`) → DoD 100% verde antes do merge. Operador aprovou; merge `--admin` (proteção de branch
+exige review/checks; o gate humano é a revisão — mesmo padrão da 7.9).
+
+**F2 ENDEREÇADO** ✅ — ondas futuras com oracle oculto (estilo 7.10) passam a corrigir com sinal
+real (o output do pytest no prompt) em vez de às cegas.
+
+#### Novo achado
+
+- **F4 — verify do meta é pytest-only.** `HDD_VERIFY_COMMAND` roda só `pytest`; lint/tipo (ruff,
+  mypy, import-linter) escapam ao loop autônomo e só são pegos no gate humano (a 7.9 veio limpa por
+  sorte; a 7.11 teve 3 E501). **Melhoria futura (candidata a meta-onda):** verify roda o DoD
+  completo (`ruff check . && mypy && lint-imports && pytest`) — o loop passaria a auto-corrigir
+  lint/tipo também (agora que o feedback do verify é propagado, F2 fechado, isso de fato convergiria).

@@ -1,0 +1,30 @@
+# Override de ORACLE OCULTO p/ a meta-onda 2 (Epic 7, Fase 2 — Story 7.10).
+#
+# Acrescenta ao worker-meta (compose.meta.yaml) uma suíte-oracle OCULTA, montada
+# read-only em /oracle SÓ no nó verify (capacidade da Story 7.9), e troca o
+# HDD_VERIFY_COMMAND para rodar APENAS o oracle contra o código do /workspace.
+# Assim o nó `execute` implementa `parse_repo_slug` SEM ver os casos de teste →
+# o verify dá sinal real → observa-se o loop verify→CORRECTING→execute disparar.
+#
+# Uso (junto dos dois composes base):
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.oracle.yaml up -d
+#
+# Por que verify oracle-only: isola o sinal do loop e elimina thrash (o execute
+# reescreve os próprios testes a cada correção). `vcs.py` é puramente aditivo —
+# nada existente quebra. O DoD completo (ruff/mypy/import-linter/suíte) é rodado
+# no GATE HUMANO, no branch do PR (worktree descartável), como na 7.9.
+#
+# Sem deps novas → NÃO precisa rebuild do hdd-meta-sandbox.
+services:
+  worker-meta:
+    environment:
+      # Dir do oracle no HOST (criado fora do compose; world-readable).
+      HDD_ORACLE_DIR: ${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/repo-slug}
+      # verify roda SÓ o oracle (/oracle) contra o código do clone (/workspace).
+      # cwd=/workspace; `cd backend` + PYTHONPATH=src resolve `import hdd.domain.vcs`.
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && PYTHONPATH=src python -m pytest /oracle -q'
+    volumes:
+      # Bind IDÊNTICO host↔worker: o `docker run -v <oracle>:/oracle:ro` do verify
+      # roda no daemon do HOST (ADR 0004), então o path precisa existir no host com
+      # o mesmo nome que o worker passa ao -v.
+      - ${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/repo-slug}:${HDD_ORACLE_DIR:-/var/lib/hdd-oracles/repo-slug}:ro

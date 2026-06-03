@@ -1,0 +1,25 @@
+# Override da META-ONDA 3 (Epic 7, Fase 2 — Story 7.11).
+#
+# A meta-onda 3 faz o HDD consertar o PRÓPRIO loop de correção (achado F2 da 7.10):
+# hoje o nó verify descarta o output do pytest e a correção re-roda cega. A feature
+# liga o feedback do verify à correção.
+#
+# Config desta onda (difere da onda 2):
+#   - SEM oracle oculto: este override NÃO inclui compose.meta.oracle.yaml. O verify
+#     usa a suíte COMPLETA do projeto_hdd (HDD_VERIFY_COMMAND base do compose.meta.yaml).
+#     Motivo: a feature é "usar o feedback do verify"; testá-la é a própria suíte do
+#     projeto (os testes que o agente escreve/atualiza), não um oracle comportamental.
+#     Um oracle oculto reativaria o bug cego que estamos consertando → inútil aqui.
+#   - timeout folgado: HDD_CLAUDE_TIMEOUT_S=1200 (era 600) — margem p/ uma mudança que
+#     toca 5 ficheiros (F1). A onda deve ser ~one-shot (o loop ainda é cego ATÉ esta
+#     feature mergear), então a folga é só seguro.
+#
+# Uso (note: SEM o compose.meta.oracle.yaml):
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.onda3.yaml up -d
+#
+# Sem deps novas (mudanças em módulos existentes, stdlib) → NÃO precisa rebuild do
+# hdd-meta-sandbox.
+services:
+  worker-meta:
+    environment:
+      HDD_CLAUDE_TIMEOUT_S: "1200"
