@@ -5,6 +5,7 @@ import functools
 import os
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _SECRETS_DIR = "/run/secrets"
@@ -69,6 +70,15 @@ class Settings(BaseSettings):
     notifier_min_interval_s: float = 1.0
     # Webhook inbound (n8n) — segredo HMAC (X-Hub-Signature-256).
     webhook_hmac_secret: str = ""
+
+    @field_validator("repo_slug")
+    @classmethod
+    def _validate_repo_slug(cls, v: str) -> str:
+        if v:
+            from hdd.domain.vcs import parse_repo_slug  # noqa: PLC0415
+
+            parse_repo_slug(v)
+        return v
 
     def allowlist(self) -> frozenset[str]:
         """Logins GitHub autorizados, normalizados (lowercase, sem vazios)."""
