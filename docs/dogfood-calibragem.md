@@ -91,3 +91,28 @@ stack): `run "<tarefa>"` (pré-flight de capacidade → enfileira → worker →
    python3+pytest (serve calibração e o futuro meta-dogfood Python).
 3. **Gap raiz (já no backlog):** `retry.decide` não está wirado → o `TransientError` de
    timeout não vira RETRY, mata a onda. Reforça o candidato a meta-onda de resiliência.
+
+## Resultado — Ondas 2 e 3 (Story 7.5, 2026-06-03): `cnpj` e `data_br`
+
+Objetivo da 7.5: exercitar o loop de correção (`verify → CORRECTING → execute`) com um
+alvo cuja 1ª tentativa provavelmente falhasse. Usou-se **oracle de teste independente**
+(TDD vermelho no repo-alvo) para a falha não ser auto-cumprida (lição da Onda 1).
+
+| Onda | Feature | Modelo | Desfecho | Correções | PR |
+|---|---|---|---|---|---|
+| 2 | `cnpj` | sonnet | `reached_gate` | **0** | #3 (mergeado) |
+| 3 | `data_br` | haiku | `reached_gate` | **0** | #4 (no gate) |
+
+- Ambas **one-shot** mesmo com oracle adversarial (cnpj: mod-11 + dígitos repetidos;
+  data_br: zero-padding estrito + validação de calendário). Verify confirmado **íntegro**
+  (reprovaria implementação ruim) — os modelos simplesmente acertaram de primeira.
+
+**🔑 Achado estrutural (gap p/ a 7.6):** o agente do nó `execute` **lê o `tests/test_*.py`
+no clone** — o oracle é visível e enumera os casos, então modelos capazes (até haiku)
+implementam direto para os testes → 0 correções. **Forçar o loop de correção exige oracle
+oculto ao execute** (mudança de harness) ou sabotagem artificial (baixo valor). A AC
+"feature que exige correção" é praticamente insatisfazível com oracle visível + modelo capaz.
+
+**Sinal H-A (positivo, forte):** 3/3 features reais (`cep`/`cnpj`/`data_br`) construídas
+autonomamente, **0 correções, 0 escaladas, 0 leases vazados**. O HDD one-shota features
+bem-especificadas e test-bounded — material direto para o GO/NO-GO da Fase 2 (Story 7.6).
