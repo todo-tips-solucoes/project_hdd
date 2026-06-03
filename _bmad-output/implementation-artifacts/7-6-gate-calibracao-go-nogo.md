@@ -80,3 +80,4 @@ so that a Fase 2 (meta-dogfood no próprio `projeto_hdd`) só comece com confian
 ## Change Log
 
 - 2026-06-03 — Gate de calibração executado (Tasks 1-5). Métricas Fase 1 consolidadas; PC-2 verificado verde; PC-1 identificada como gap bloqueante (contenção de Write não enforçada/testada). Veredito do operador: **NO-GO condicional**. ADR 0006 registrado. Status → review.
+- 2026-06-03 — **Gate RE-RODADO** após a Story 7.7 fechar PC-1 (boundary do container worker + invariante). Pré-condições PC-1 ✅ + PC-2 ✅ + capacidade provada → **veredito do operador: GO**. ADR 0006 atualizado para GO. **Fase 2 (meta-dogfood) liberada.**

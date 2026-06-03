@@ -1,6 +1,19 @@
-# 0006 — Gate de calibração: NO-GO condicional para a Fase 2 (meta-dogfood)
+# 0006 — Gate de calibração: GO para a Fase 2 (meta-dogfood)
 
-**Data:** 2026-06-03 · **Status:** ⛔ NO-GO condicional · **Decisão do operador.** · **Story 7.6.**
+**Data:** 2026-06-03 · **Status:** ✅ **GO** (re-avaliado após PC-1 fechada na Story 7.7;
+veredito original NO-GO condicional preservado abaixo) · **Decisão do operador.** · **Story 7.6.**
+
+## Veredito final 2026-06-03 (re-run do gate) — ✅ GO
+
+Com **PC-1 fechada** (Story 7.7 — contenção do `execute` pelo boundary do container worker,
+pinada por invariante) e **PC-2 verde**, as duas pré-condições bloqueantes estão satisfeitas;
+a **capacidade (H-A)** já estava provada (3/3 features one-shot). **Decisão do operador: GO.**
+
+A **Fase 2 (meta-dogfood)** está liberada: o HDD pode construir features no próprio
+`projeto_hdd`, sempre **via PR + gate humano** (6.8), em **workspace efêmero** (6.6), sob o
+**pré-flight de capacidade** ([[0005]]), **sem auto-deploy** (PC-2) e **sem tocar**
+`compose.prod.yaml`/`secrets/`/`deploy.env`. Candidatos à 1ª meta-onda: dívida conhecida de
+baixo risco (ex.: worker multi-arch) ou o backlog "oracle oculto" (achado da 7.5).
 
 ## Contexto
 
