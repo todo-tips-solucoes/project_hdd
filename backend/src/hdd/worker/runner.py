@@ -50,6 +50,14 @@ async def _safe_record_gap(
         log.exception("dogfood.gap_record_falhou", wave_id=wave_id, stage=stage)
 
 
+async def _safe_project_failed(repo: Repository, wave_id: str) -> None:
+    """Projeta FAILED no read-model em best-effort: não propaga exceção."""
+    try:
+        await repo.sync_wave_state(wave_id, wv.WaveState.FAILED)
+    except Exception:  # noqa: BLE001
+        log.exception("worker.project_failed_falhou", wave_id=wave_id)
+
+
 async def bridge_after_wave(
     repo: Repository,
     gate_store: GateStore,
@@ -66,7 +74,8 @@ async def bridge_after_wave(
     if not raw:
         return
     state = wv.WaveState(raw)
-    await repo.sync_wave_state(thread_id, state)
+    n_corr = int(result.get("n_corrections", 0))
+    await repo.sync_wave_state(thread_id, state, n_corrections=n_corr)
     # Harness de dogfood (7.1): correções por onda + desfecho da execução autônoma.
     # Conta-se aqui (lado worker), NÃO no resume — o resume é a decisão humana, não
     # capacidade autônoma (evita dupla contagem com gates.py).
@@ -122,9 +131,11 @@ def build_wave_runner(settings: Settings) -> WaveRunner:
             await bridge_after_wave(repo, gate_store, thread_id, result, gap_store=gap_store)
         except QuotaExhausted as exc:
             # gap→backlog (7.2): limite da conta interrompeu a onda (D-032).
+            await _safe_project_failed(repo, thread_id)
             await _safe_record_gap(gap_store, thread_id, "quota", f"limite da conta: {exc}")
             raise  # o loop contabiliza quota_limit_hits e marca a fila
         except Exception as exc:
+            await _safe_project_failed(repo, thread_id)
             await _safe_record_gap(gap_store, thread_id, "failure", f"exceção na onda: {exc}")
             raise  # o loop contabiliza wave_failures e marca a fila
         finally:

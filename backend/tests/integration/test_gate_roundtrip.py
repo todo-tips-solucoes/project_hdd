@@ -111,3 +111,19 @@ async def test_resume_apos_decisao_retoma_a_onda_e_projeta_estado(
     assert await gate_store.status(gid) == final_status
     states = {w: st for w, _sid, st, _n in await repo.list_waves()}
     assert states[wid] == str(final_state)  # app.waves projetado do checkpoint
+
+
+async def test_bridge_persiste_n_corrections_no_banco() -> None:
+    sm = _sm()
+    repo, gate_store = Repository(sm), GateStore(sm)
+    wid = await _new_wave(repo, "n_corrections round-trip")
+
+    await bridge_after_wave(
+        repo,
+        gate_store,
+        wid,
+        {"wave_state": str(WaveState.AWAITING_GATE), "n_corrections": 5},
+    )
+
+    waves = {w: n for w, _sid, _st, n in await repo.list_waves()}
+    assert waves[wid] == 5
