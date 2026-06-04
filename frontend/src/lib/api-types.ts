@@ -351,6 +351,8 @@ export interface components {
             failed: number;
             /** Gates Pending */
             gates_pending: number;
+            /** Active Waves */
+            active_waves: number;
         };
         /** SessionOut */
         SessionOut: {
