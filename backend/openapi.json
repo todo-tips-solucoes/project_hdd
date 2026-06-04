@@ -597,6 +597,10 @@
           "gates_pending": {
             "type": "integer",
             "title": "Gates Pending"
+          },
+          "active_waves": {
+            "type": "integer",
+            "title": "Active Waves"
           }
         },
         "type": "object",
@@ -608,7 +612,8 @@
           "reached_gate",
           "escalated",
           "failed",
-          "gates_pending"
+          "gates_pending",
+          "active_waves"
         ],
         "title": "HarnessSummary"
       },

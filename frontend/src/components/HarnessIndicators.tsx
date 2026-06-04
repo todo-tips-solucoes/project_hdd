@@ -34,6 +34,7 @@ export function HarnessIndicators() {
       <h2 className="text-sm font-semibold">Indicadores do harness</h2>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <Stat label="Ondas" value={data.total_waves} />
+        <Stat label="Ativas" value={data.active_waves} />
         <Stat label="No gate" value={data.reached_gate} />
         <Stat label="Escaladas" value={data.escalated} />
         <Stat label="Falhas" value={data.failed} />

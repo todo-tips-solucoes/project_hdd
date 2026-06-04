@@ -40,6 +40,14 @@ async def get_harness(
 
     mean_corrections = total_corrections / total_waves if total_waves > 0 else 0.0
 
+    _active_states = {
+        WaveState.PLANNED,
+        WaveState.EXECUTING,
+        WaveState.VERIFYING,
+        WaveState.CORRECTING,
+    }
+    active_waves = sum(by_state[s.value] for s in _active_states)
+
     return HarnessSummary(
         total_waves=total_waves,
         by_state=by_state,
@@ -49,4 +57,5 @@ async def get_harness(
         escalated=escalated,
         failed=failed,
         gates_pending=gates_pending,
+        active_waves=active_waves,
     )
