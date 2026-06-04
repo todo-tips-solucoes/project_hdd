@@ -116,6 +116,16 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
     uv sync --frozen --no-install-project
+# Node 22 + openapi-typescript PINADO (== devDep do frontend, 7.13.0) — permite o
+# codegen regenerar os tipos TS do contrato (frontend/src/lib/api-types.ts) DENTRO
+# do loop, fechando o gap de frontend (a regeneração do openapi.json já é Python).
+# Versão pinada p/ saída byte-idêntica ao `npm run typegen` do CI; se o frontend
+# bumpar openapi-typescript, atualize este pin.
+COPY --from=nodejs /usr/local/bin/node /usr/local/bin/node
+COPY --from=nodejs /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+ && npm install -g openapi-typescript@7.13.0 \
+ && npm cache clean --force
 RUN useradd --uid 10001 --create-home sandbox
 USER 10001:10001
 WORKDIR /workspace
