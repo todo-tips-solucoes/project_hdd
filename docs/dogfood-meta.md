@@ -386,3 +386,31 @@ após o merge, `hdd-worker:latest` foi **rebuildado** (F5) com o codegen; as pr�
 
 **F9 ENDEREÇADO** ✅ — a regeneração de artefatos derivados é responsabilidade do sistema; a prova viva
 será a próxima onda que mude a API (regenera o contrato sem hand-edit).
+
+### Meta-onda 11 — validação do F9 AO VIVO (2026-06-04)
+
+Primeira onda com **`HDD_CODEGEN_COMMAND` ligado** (entregue na Meta-onda 10). Feature-veículo: novo
+campo `active_waves: int` no `HarnessSummary` (ondas em estados não-terminais/não-gate) — uma mudança
+de **API**, logo o `openapi.json` precisa mudar. A tarefa **proibiu o agente de tocar o `openapi.json`**.
+
+| Campo | Valor |
+|---|---|
+| Onda | `019e8fec-414e` · worker com codegen · `HDD_CODEGEN_COMMAND = export_openapi.py openapi.json` |
+| Desfecho | **awaiting_gate one-shot** (`->execute=1`, `n_corr=0`) — **sem escalação** (vs onda 9, que escalou exatamente aqui) |
+| PR | #38 → **CI 6/6 verde** (incl. **OpenAPI sem drift**) → merged `--squash` **sem `--admin`** → `ea10234` |
+
+**Cadeia da prova (F9 fechado de ponta a ponta):**
+1. O agente mudou só `schemas/router/test` — o `git status` dele **nunca** teve `openapi.json`.
+2. `codegen.concluido exit_code=0` — o codegen do sistema rodou no nó verify e regenerou o contrato.
+3. O `openapi.json` no PR tem `active_waves`, commitado pelo nó `pr` (trabalho do sistema).
+4. **CI "OpenAPI sem drift" → pass**: o contrato commitado é canônico, sem hand-edit do agente.
+
+**Contraste direto com a onda 9:** lá o agente hand-editou o `openapi.json` → drift inconvergível → 4
+verify vermelhos → escalou. Aqui, com o codegen, o mesmo tipo de mudança de API converge **one-shot**.
+
+**Gap residual (conhecido, fora do F9):** o `api-types.ts` do **frontend** (Node) ainda precisa de
+regeneração no gate quando a API muda — o codegen Python cobre o contrato backend, não os tipos TS. A
+parte de frontend (`api-types.ts` + stat "Ativas" no painel) foi completada no gate, como nas ondas
+full-stack anteriores. Candidato futuro: um passo de codegen de frontend (fora do loop Python).
+
+**F9 CONFIRMADO AO VIVO** ✅ — o loop autônomo mantém o contrato OpenAPI canônico sem o agente.

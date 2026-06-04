@@ -1,0 +1,22 @@
+# Override da META-ONDA 11 (Epic 7, Fase 2) — VALIDAÇÃO AO VIVO do F9.
+#
+# Primeira onda com HDD_CODEGEN_COMMAND LIGADO (entregue na Meta-onda 10). A onda
+# MUDA a API (novo campo active_waves no HarnessSummary → openapi.json muda), mas o
+# agente NÃO regenera o contrato — o codegen do sistema roda no sandbox ANTES do
+# verify e regenera openapi.json in-place (persiste até o commit). Prova viva: o CI
+# "OpenAPI sem drift" passa no gate sem o agente ter tocado o openapi.json.
+#
+# Requer hdd-worker:latest COM o codegen (rebuildado pós-Meta-onda 10).
+#   HDD_CODEGEN_COMMAND: regenera o contrato canonicamente no loop.
+#   verify = DoD + oracle (SEM drift-check: o codegen já deixa o contrato canônico).
+# Oracle: /var/lib/hdd-oracles/harness-active (acceptance offline, RED/GREEN validado).
+#
+# Uso:
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.onda11.yaml up -d
+services:
+  worker-meta:
+    environment:
+      HDD_ORACLE_DIR: /var/lib/hdd-oracles/harness-active
+      HDD_CODEGEN_COMMAND: sh -c 'cd backend && PYTHONPATH=src python scripts/export_openapi.py openapi.json'
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && ruff check . && MYPYPATH=src mypy && PYTHONPATH=src lint-imports && python -m pytest -q && PYTHONPATH=src python -m pytest /oracle -p no:cacheprovider -q'
+      HDD_CLAUDE_TIMEOUT_S: "1200"
