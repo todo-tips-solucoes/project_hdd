@@ -349,6 +349,8 @@ export interface components {
             escalated: number;
             /** Failed */
             failed: number;
+            /** Merged */
+            merged: number;
             /** Gates Pending */
             gates_pending: number;
             /** Active Waves */
