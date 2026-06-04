@@ -92,3 +92,4 @@ class HarnessSummary(BaseModel):
     escalated: int
     failed: int
     gates_pending: int
+    active_waves: int

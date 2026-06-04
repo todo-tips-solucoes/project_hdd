@@ -361,6 +361,33 @@ def test_harness_caso_vazio() -> None:
     assert body["gates_pending"] == 0
 
 
+def test_harness_active_waves() -> None:
+    """active_waves conta apenas ondas em estados não-terminais e não-gate."""
+
+    class _Repo:
+        async def list_waves(self) -> list[tuple[str, str, str, int]]:
+            return [
+                ("w1", "s1", "planned", 0),
+                ("w2", "s1", "executing", 1),
+                ("w3", "s1", "verifying", 0),
+                ("w4", "s1", "correcting", 2),
+                ("w5", "s1", "awaiting_gate", 0),
+                ("w6", "s1", "merged", 0),
+                ("w7", "s1", "failed", 0),
+            ]
+
+        async def count_pending_gates(self) -> int:
+            return 1
+
+    app = create_app()
+    app.dependency_overrides[require_user] = lambda: User(login="op")
+    app.dependency_overrides[get_repository] = lambda: _Repo()
+    with TestClient(app) as c:
+        body = c.get("/api/harness").json()
+
+    assert body["active_waves"] == 4
+
+
 def test_harness_exige_sessao() -> None:
     with TestClient(create_app()) as c:
         assert c.get("/api/harness").status_code == 401
