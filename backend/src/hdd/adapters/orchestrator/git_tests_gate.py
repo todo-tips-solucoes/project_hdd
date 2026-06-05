@@ -13,7 +13,7 @@ GitRunner = Callable[[str], str]
 
 def _run_git_status(workspace: str) -> str:
     result = subprocess.run(
-        ["git", "-C", workspace, "status", "--porcelain"],
+        ["git", "-C", workspace, "status", "--porcelain", "--untracked-files=all"],
         capture_output=True,
         text=True,
         check=True,
