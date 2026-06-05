@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     # Comando de geração de artefatos derivados rodado no sandbox ANTES do verify.
     # Vazio → passo desligado. Env: HDD_CODEGEN_COMMAND.
     codegen_command: str = ""
+    # Glob de testes de aceitação — gate que exige pelo menos um arquivo de teste
+    # novo/modificado no workspace antes de prosseguir ao verify. Vazio → gate
+    # desligado. Env: HDD_REQUIRE_TESTS_GLOB.
+    require_tests_glob: str = ""
 
     # --- Epic 6: provisionamento de workspace da onda (Story 6.6) ----------
     # Repo-alvo clonado num dir efêmero por onda. Vazio → sem workspace (o
