@@ -443,3 +443,36 @@ frontend (comentado no `backend/Dockerfile`). **Follow-up (fora de escopo):** o 
 **prod** (`HDD_SANDBOX_IMAGE`) precisa do mesmo Node+ots para o codegen full-stack em produção (PC-2).
 
 **GAP DE FRONTEND FECHADO** ✅ — codegen full-stack no loop, sem passo manual no gate.
+
+### Meta-ondas 13/14 — gate de "testes adicionados" (generaliza o F7) + fix do bug -uall (2026-06-05)
+
+Generaliza o **F7** (verify sem oracle não pega no-op/off-task) com um gate **autônomo**: o orquestrador
+reprova in-loop uma onda de feature que não adicionou testes — sem depender de um oracle escrito à mão.
+
+**Meta-onda 13 (Story 7.19) — o gate.** `Settings.require_tests_glob` + `make_git_tests_gate` (roda
+`git status` no workspace, checa o glob; runner de git **injetável** p/ testar sem git) + param
+`acceptance` no `WaveOrchestrator` (roda ANTES do verify; sem teste casando o glob → `CORRECTING`) +
+wiring no factory. Onda `019e98cb-fbad` → **awaiting_gate one-shot**; PR #41 → CI 6/6 → `ea56493`.
+
+**Prova ao vivo (forçada).** Com `HDD_REQUIRE_TESTS_GLOB=*tests/acceptance/*.py` e um no-op (cria
+`marker.py`), o agente pôs o teste em `tests/unit/` → **gate disparou** → `->execute=4`,
+`verify.concluido=0` → **escalou sem chegar ao gate** (contraste com a onda-9-tentativa-1, em que o
+no-op *chegou* ao gate). **Disparo do gate DEMONSTRADO.** Mas surfou um **bug**: o
+`git status --porcelain` SEM `--untracked-files=all` **colapsa diretórios novos** não-rastreados, então
+o teste que o agente criou em `tests/acceptance/` (dir novo) não foi visto — o gate era over-strict.
+(Os unit tests não pegaram: usavam runner injetável com saída fabricada, não git real sobre dir novo —
+o valor do dogfood ao vivo.)
+
+**Meta-onda 14 — o HDD conserta o próprio gate.** Fix: `git status --porcelain --untracked-files=all`.
+Onda `019e9911-ef4d` → **awaiting_gate one-shot**; PR #43 → CI 6/6 → `ee0f44f`.
+
+**Re-prova (gate corrigido) — disparo → correção → convergência LIMPA:**
+
+| | `->execute` | `verify.concluido` | desfecho |
+|---|---|---|---|
+| Gate buggy (antes do fix) | 4 | 0 | **escalou** (não via o teste no dir novo) |
+| Gate corrigido | **2** | **1** | **awaiting_gate** (disparou → agente criou `tests/acceptance/` → gate viu → passou) |
+
+**F7 GENERALIZADO** ✅ — gate de testes autônomo, provado ao vivo (dispara, bloqueia, e converge após
+correção). **Ativação:** ondas de feature setam `HDD_REQUIRE_TESTS_GLOB` (glob casando o prefixo do
+path, ex.: `*tests/*.py`) no override de compose; deploy de prod = passo separado (PC-2).

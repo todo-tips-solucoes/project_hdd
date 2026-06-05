@@ -1,0 +1,26 @@
+# Override da META-ONDA 13 (Epic 7, Fase 2 — Story 7.19) — generaliza o F7.
+#
+# Feature: gate de "testes adicionados" no orquestrador. Endereça o F7 (verify sem
+# oracle não pega no-op/off-task). Novo `Settings.require_tests_glob` + um passo
+# `acceptance` (Verifier-shaped) injetado no WaveOrchestrator: o nó verify roda o
+# acceptance ANTES do verify; se a onda NÃO adicionou/alterou testes que casem com o
+# glob, dispara o loop de correção (sem verify, sem merge). Pega os DOIS modos de
+# falha da onda 9 (no-op E off-task-docs, que ambos não adicionaram teste) IN-LOOP.
+#
+# O gate roda `git status` no workspace (o WORKER tem git; o meta-sandbox NÃO). Por
+# isso a onda mexe só em Python (orquestrador/settings), NÃO na API → converge limpa
+# sob DoD + oracle (sem drift). verify = DoD + ORACLE de aceitação.
+# Oracle: /var/lib/hdd-oracles/acceptance (RED/GREEN validado).
+#
+# ⚠️ Testes do agente que usem git real devem ir em tests/integration/
+# (@pytest.mark.integration) — o sandbox de verify exclui integração (addopts
+# -m "not integration") e não tem git. (Guiado no prompt da tarefa.)
+#
+# Uso:
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.onda13.yaml up -d
+services:
+  worker-meta:
+    environment:
+      HDD_ORACLE_DIR: /var/lib/hdd-oracles/acceptance
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && ruff check . && MYPYPATH=src mypy && PYTHONPATH=src lint-imports && python -m pytest -q && PYTHONPATH=src python -m pytest /oracle -p no:cacheprovider -q'
+      HDD_CLAUDE_TIMEOUT_S: "1200"

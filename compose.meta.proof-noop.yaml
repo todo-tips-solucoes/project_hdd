@@ -1,0 +1,21 @@
+# Override de PROVA — demonstra o gate de "testes adicionados" (Meta-onda 13) ao vivo.
+#
+# Liga HDD_REQUIRE_TESTS_GLOB. A tarefa é um no-op deliberado (cria um arquivo
+# trivial, sem teste) — reproduz o modo de falha do F7 (onda-9-tentativa-1, que
+# chegou ao gate sem teste). Com o gate ligado, o nó verify roda o acceptance ANTES
+# do verify: sem teste no git status → CORRECTING (sem chamar verify, sem merge).
+#
+# Assinatura observável da prova: ->execute incrementa SEM um verify.concluido
+# correspondente (o acceptance curto-circuita o verify). O agente então é forçado a
+# adicionar um teste (converge) ou escala ao esgotar N.
+#
+# Requer hdd-worker:latest COM o gate (rebuildado pós-merge do #41).
+#
+# Uso:
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.proof-noop.yaml up -d
+services:
+  worker-meta:
+    environment:
+      HDD_REQUIRE_TESTS_GLOB: "*tests/acceptance/*.py"
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && ruff check . && MYPYPATH=src mypy && PYTHONPATH=src lint-imports && python -m pytest -q'
+      HDD_CLAUDE_TIMEOUT_S: "1200"

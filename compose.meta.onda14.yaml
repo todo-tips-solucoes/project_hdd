@@ -1,0 +1,22 @@
+# Override da META-ONDA 14 (Epic 7, Fase 2) — HDD conserta o próprio gate de testes.
+#
+# Corrige o bug -uall do make_git_tests_gate (Meta-onda 13), surfado pela prova ao
+# vivo: `git status --porcelain` SEM --untracked-files=all colapsa diretórios NOVOS
+# não-rastreados, então um teste adicionado em backend/tests/acceptance/ (dir novo)
+# não é detectado → o gate reprova indevidamente e a onda escala. Fix: o runner
+# default chama o git com --untracked-files=all.
+#
+# A onda mexe só em Python (adapters/orchestrator/git_tests_gate.py + teste), NÃO na
+# API → converge limpa sob DoD + oracle. verify = DoD + ORACLE.
+# Oracle: /var/lib/hdd-oracles/gate-uall (asserta o comando git via mock, RED/GREEN
+# validado). NOTA: o gate de testes (HDD_REQUIRE_TESTS_GLOB) fica DESLIGADO nesta
+# onda — a versão no worker ainda é a buggy; ligá-la arriscaria escalar o próprio fix.
+#
+# Uso:
+#   docker compose -p hdd_dev -f compose.yaml -f compose.meta.yaml -f compose.meta.onda14.yaml up -d
+services:
+  worker-meta:
+    environment:
+      HDD_ORACLE_DIR: /var/lib/hdd-oracles/gate-uall
+      HDD_VERIFY_COMMAND: sh -c 'cd backend && ruff check . && MYPYPATH=src mypy && PYTHONPATH=src lint-imports && python -m pytest -q && PYTHONPATH=src python -m pytest /oracle -p no:cacheprovider -q'
+      HDD_CLAUDE_TIMEOUT_S: "1200"
