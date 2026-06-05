@@ -333,6 +333,7 @@ def test_harness_caso_normal() -> None:
     assert body["reached_gate"] == 2
     assert body["escalated"] == 0
     assert body["failed"] == 1
+    assert body["merged"] == 1
     assert body["gates_pending"] == 5
     assert body["by_state"]["awaiting_gate"] == 1
     assert body["by_state"]["merged"] == 1
@@ -358,6 +359,7 @@ def test_harness_caso_vazio() -> None:
     assert body["mean_corrections"] == 0.0
     assert body["total_corrections"] == 0
     assert all(v == 0 for v in body["by_state"].values())
+    assert body["merged"] == 0
     assert body["gates_pending"] == 0
 
 
@@ -386,6 +388,31 @@ def test_harness_active_waves() -> None:
         body = c.get("/api/harness").json()
 
     assert body["active_waves"] == 4
+
+
+def test_harness_merged() -> None:
+    """merged reflete exclusivamente ondas no estado merged."""
+
+    class _Repo:
+        async def list_waves(self) -> list[tuple[str, str, str, int]]:
+            return [
+                ("w1", "s1", "merged", 0),
+                ("w2", "s1", "merged", 1),
+                ("w3", "s1", "failed", 0),
+            ]
+
+        async def count_pending_gates(self) -> int:
+            return 0
+
+    app = create_app()
+    app.dependency_overrides[require_user] = lambda: User(login="op")
+    app.dependency_overrides[get_repository] = lambda: _Repo()
+    with TestClient(app) as c:
+        body = c.get("/api/harness").json()
+
+    assert body["merged"] == 2
+    assert body["by_state"]["merged"] == 2
+    assert body["by_state"]["failed"] == 1
 
 
 def test_harness_exige_sessao() -> None:

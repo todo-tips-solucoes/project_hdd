@@ -594,6 +594,10 @@
             "type": "integer",
             "title": "Failed"
           },
+          "merged": {
+            "type": "integer",
+            "title": "Merged"
+          },
           "gates_pending": {
             "type": "integer",
             "title": "Gates Pending"
@@ -612,6 +616,7 @@
           "reached_gate",
           "escalated",
           "failed",
+          "merged",
           "gates_pending",
           "active_waves"
         ],

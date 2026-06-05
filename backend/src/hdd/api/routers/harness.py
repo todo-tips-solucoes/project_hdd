@@ -48,6 +48,8 @@ async def get_harness(
     }
     active_waves = sum(by_state[s.value] for s in _active_states)
 
+    merged = by_state[WaveState.MERGED.value]
+
     return HarnessSummary(
         total_waves=total_waves,
         by_state=by_state,
@@ -56,6 +58,7 @@ async def get_harness(
         reached_gate=reached_gate,
         escalated=escalated,
         failed=failed,
+        merged=merged,
         gates_pending=gates_pending,
         active_waves=active_waves,
     )
