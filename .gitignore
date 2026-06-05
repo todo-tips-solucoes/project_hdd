@@ -17,6 +17,9 @@ _bmad/custom/config.user.toml
 /secrets/
 /deploy.env
 
+# Log do backup periódico do pgBackRest (cron) — local, não versionar.
+/ops/pgbackrest/backup.log
+
 # Python / uv (HDD v2 — backend). uv.lock fica committable (reproducibilidade);
 # .venv e caches nunca.
 .venv/
