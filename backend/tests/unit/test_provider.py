@@ -64,6 +64,13 @@ def test_exit_zero_retorna_result(monkeypatch):
     assert res.quota_exhausted is False
 
 
+def test_exit_zero_com_aviso_de_quota_seta_flag(monkeypatch):
+    _patch(monkeypatch, _FakeProc(0, '{"result":"OK"}', "approaching usage limit"), {})
+    res = ClaudeSubscriptionProvider().invoke("x")
+    assert res.exit_code == 0
+    assert res.quota_exhausted is True
+
+
 def test_quota_levanta_quotaexhausted(monkeypatch):
     _patch(monkeypatch, _FakeProc(1, "", "Usage limit reached"), {})
     with pytest.raises(QuotaExhausted):

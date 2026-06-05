@@ -15,19 +15,14 @@ import subprocess
 
 from hdd.contracts.dtos import LlmResult
 from hdd.domain.errors import QuotaExhausted, TransientError
+from hdd.domain.marker import detect_quota_exhausted
 
-QUOTA_MARKERS = ("usage limit", "rate limit", "quota", "limit reached", "overloaded")
 # Padrão (plan/verify, sem workspace): bloqueia TODA escrita/execução (G-1/G-2).
 DEFAULT_DISALLOWED = ("Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "WebFetch")
 # Modo workspace (execute, Story 6.6): libera escrita — contida ao clone efêmero
 # pelo cwd — mas mantém Bash/WebFetch bloqueados (sem exec arbitrário no host nem
 # egress). A execução de testes acontece no sandbox isolado (verify, Story 6.3).
 WORKSPACE_DISALLOWED = ("Bash", "WebFetch")
-
-
-def detect_quota(stdout: str, stderr: str, exit_code: int) -> bool:
-    combined = (stdout + stderr).lower()
-    return exit_code != 0 and any(m in combined for m in QUOTA_MARKERS)
 
 
 class ClaudeSubscriptionProvider:
@@ -70,7 +65,7 @@ class ClaudeSubscriptionProvider:
 
         # Mapeamento exit-code → classe de erro (taxonomia R-12).
         if proc.returncode != 0:
-            if detect_quota(proc.stdout, proc.stderr, proc.returncode):
+            if detect_quota_exhausted(proc.stdout, proc.stderr):
                 raise QuotaExhausted("claude -p atingiu limite de uso da conta")
             raise TransientError(f"claude -p falhou (exit {proc.returncode})")
 
@@ -87,6 +82,6 @@ class ClaudeSubscriptionProvider:
             text=text,
             session_id=session_id,
             exit_code=proc.returncode,
-            quota_exhausted=False,
+            quota_exhausted=detect_quota_exhausted(proc.stdout, proc.stderr),
             raw=out,
         )
