@@ -1,6 +1,8 @@
 """Testes unitários para make_git_tests_gate (runner de git injetável, sem git real)."""
 from __future__ import annotations
 
+from unittest.mock import MagicMock, patch
+
 from hdd.adapters.orchestrator.git_tests_gate import make_git_tests_gate
 from hdd.config.settings import Settings
 
@@ -88,3 +90,13 @@ def test_runner_recebe_workspace_correto() -> None:
     verifier = make_git_tests_gate(_settings("tests/*.py"), git_runner=capture)
     verifier("/my/workspace")
     assert received == ["/my/workspace"]
+
+
+def test_default_runner_usa_untracked_files_all() -> None:
+    mock_result = MagicMock()
+    mock_result.stdout = "?? tests/new_dir/test_novo.py\n"
+    with patch("subprocess.run", return_value=mock_result) as mock_run:
+        verifier = make_git_tests_gate(_settings("tests/**/*.py"))
+        verifier("/workspace")
+        cmd = mock_run.call_args[0][0]
+        assert "--untracked-files=all" in cmd
