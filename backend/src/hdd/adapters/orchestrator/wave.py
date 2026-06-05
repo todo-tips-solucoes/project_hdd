@@ -51,12 +51,14 @@ class WaveOrchestrator:
         max_corrections: int = 3,
         vcs: Vcs | None = None,
         codegen: Verifier | None = None,
+        acceptance: Verifier | None = None,
     ) -> None:
         self._llm = llm
         self._verify = verify
         self._max = max_corrections
         self._vcs = vcs
         self._codegen = codegen
+        self._acceptance = acceptance
         self._graph = self._build(checkpointer)
 
     # --- helpers -----------------------------------------------------------
@@ -88,6 +90,13 @@ class WaveOrchestrator:
                 return {
                     "wave_state": self._to(state, wv.WaveState.CORRECTING),
                     "verify_feedback": cg_fb,
+                }
+        if self._acceptance is not None:
+            acc_ok, acc_fb = self._acceptance(workspace)
+            if not acc_ok:
+                return {
+                    "wave_state": self._to(state, wv.WaveState.CORRECTING),
+                    "verify_feedback": acc_fb,
                 }
         ok, feedback = self._verify(workspace)
         target = wv.WaveState.AWAITING_GATE if ok else wv.WaveState.CORRECTING

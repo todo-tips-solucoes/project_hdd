@@ -242,3 +242,86 @@ async def test_sem_codegen_fluxo_identico_ao_atual() -> None:
     )
     out = await orch.run_wave("w-nocg", "tarefa")
     assert out["wave_state"] == "awaiting_gate"
+
+
+# --- acceptance gate (gate de testes adicionados) --------------------------
+
+
+async def test_acceptance_roda_antes_do_verify() -> None:
+    order: list[str] = []
+
+    def acc(ws: str) -> tuple[bool, str]:
+        order.append("acceptance")
+        return (True, "")
+
+    def v(ws: str) -> tuple[bool, str]:
+        order.append("verify")
+        return (True, "")
+
+    orch = WaveOrchestrator(
+        FakeLLM(), verify=v, checkpointer=MemorySaver(), acceptance=acc
+    )
+    await orch.run_wave("w-acc-order", "tarefa")
+    assert order == ["acceptance", "verify"]
+
+
+async def test_acceptance_falho_loop_escala_sem_merge() -> None:
+    verify_called = False
+
+    def v(ws: str) -> tuple[bool, str]:
+        nonlocal verify_called
+        verify_called = True
+        return (True, "")
+
+    orch = WaveOrchestrator(
+        FakeLLM(),
+        verify=v,
+        checkpointer=MemorySaver(),
+        max_corrections=1,
+        acceptance=lambda ws: (False, "testes ausentes"),
+    )
+    out = await orch.run_wave("w-acc-fail", "tarefa", workspace="/ws")
+    assert out["wave_state"] == "escalated"
+    assert not verify_called
+    assert out.get("result") != "merged"
+
+
+async def test_acceptance_falho_injeta_feedback_na_correcao() -> None:
+    prompts: list[str] = []
+
+    class RecordingLLM:
+        def invoke(self, prompt: str) -> LlmResult:
+            prompts.append(prompt)
+            return LlmResult(
+                text="ok", session_id=None, exit_code=0, quota_exhausted=False, raw="ok"
+            )
+
+    tentativas = 0
+
+    def once_failing_acceptance(ws: str) -> tuple[bool, str]:
+        nonlocal tentativas
+        tentativas += 1
+        return (False, "testes ausentes") if tentativas == 1 else (True, "")
+
+    orch = WaveOrchestrator(
+        RecordingLLM(),
+        verify=lambda ws: (True, ""),
+        checkpointer=MemorySaver(),
+        max_corrections=3,
+        acceptance=once_failing_acceptance,
+    )
+    await orch.run_wave("w-acc-fb", "tarefa")
+    execute_prompts = [p for p in prompts if p.startswith("Implemente")]
+    assert len(execute_prompts) == 2
+    assert "testes ausentes" in execute_prompts[1]
+
+
+async def test_sem_acceptance_fluxo_identico_ao_atual() -> None:
+    orch = WaveOrchestrator(
+        FakeLLM(),
+        verify=lambda ws: (True, ""),
+        checkpointer=MemorySaver(),
+        # acceptance omitido → None
+    )
+    out = await orch.run_wave("w-no-acc", "tarefa")
+    assert out["wave_state"] == "awaiting_gate"

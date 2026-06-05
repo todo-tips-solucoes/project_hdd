@@ -20,6 +20,7 @@ from hdd.adapters.llm.subscription import (
     WORKSPACE_DISALLOWED,
     ClaudeSubscriptionProvider,
 )
+from hdd.adapters.orchestrator.git_tests_gate import make_git_tests_gate
 from hdd.adapters.orchestrator.wave import Verifier, WaveOrchestrator
 from hdd.adapters.sandbox.verifier import make_sandbox_codegen
 from hdd.adapters.vcs import GitHubVcs
@@ -67,8 +68,14 @@ async def open_orchestrator(
     if workspace or settings.repo_slug:
         vcs = GitHubVcs(workspace or ".", repo_slug=settings.repo_slug or None)
     codegen = make_sandbox_codegen(settings) if settings.codegen_command else None
+    acceptance = make_git_tests_gate(settings) if settings.require_tests_glob else None
     async with AsyncPostgresSaver.from_conn_string(settings.pg_dsn) as checkpointer:
         await checkpointer.setup()
         yield WaveOrchestrator(
-            provider, verify=verify, checkpointer=checkpointer, vcs=vcs, codegen=codegen
+            provider,
+            verify=verify,
+            checkpointer=checkpointer,
+            vcs=vcs,
+            codegen=codegen,
+            acceptance=acceptance,
         )
