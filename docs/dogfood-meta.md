@@ -414,3 +414,32 @@ parte de frontend (`api-types.ts` + stat "Ativas" no painel) foi completada no g
 full-stack anteriores. Candidato futuro: um passo de codegen de frontend (fora do loop Python).
 
 **F9 CONFIRMADO AO VIVO** ✅ — o loop autônomo mantém o contrato OpenAPI canônico sem o agente.
+
+### Meta-onda 12 — codegen full-stack: fecha o gap de frontend (2026-06-04)
+
+Fecha o **gap residual da Meta-onda 11**: o `api-types.ts` (Node) também passa a ser regenerado pelo
+sistema no loop. Pré-requisito (PR #39, `2ffdf1c`): o `meta-sandbox` ganhou **Node 22 +
+`openapi-typescript@7.13.0`** (pinado == devDep do frontend; saída byte-idêntica ao `npm run typegen`
+do CI, validada sob o hardening real). O `HDD_CODEGEN_COMMAND` passou a **full-stack**:
+`export_openapi.py openapi.json && openapi-typescript backend/openapi.json -o frontend/src/lib/api-types.ts`.
+
+Feature-veículo: campo `merged: int` no `HarnessSummary` (mudança de API → muda **os dois** contratos).
+A tarefa **proibiu o agente de tocar `openapi.json` E `api-types.ts`**.
+
+| Campo | Valor |
+|---|---|
+| Onda | `019e94d8-6950` · meta-sandbox com Node · codegen full-stack |
+| Desfecho | **awaiting_gate one-shot** (`->execute=1`, `n_corr=0`, `codegen.concluido` exit 0) |
+| PR | #40 → **CI 6/6 verde** (incl. **OpenAPI sem drift** E **Frontend/typegen-drift**) → merged `--squash` **sem `--admin`** → `f508038` |
+
+**Prova de ponta a ponta:** o agente mexeu **só** em `schemas/router/test`; o codegen do sistema
+regenerou **ambos** os contratos no loop (`openapi.json` com `merged`, `api-types.ts` com `merged`);
+o CI passou 100% **sem nenhum hand-fix de frontend no gate** — contraste direto com a onda 11, onde o
+`api-types.ts` foi regenerado à mão. O loop autônomo agora mantém **backend + frontend** contract-first
+sozinho.
+
+**Nota de manutenção:** o pin `openapi-typescript@7.13.0` no `meta-sandbox` é acoplado ao devDep do
+frontend (comentado no `backend/Dockerfile`). **Follow-up (fora de escopo):** o sandbox de verify de
+**prod** (`HDD_SANDBOX_IMAGE`) precisa do mesmo Node+ots para o codegen full-stack em produção (PC-2).
+
+**GAP DE FRONTEND FECHADO** ✅ — codegen full-stack no loop, sem passo manual no gate.
