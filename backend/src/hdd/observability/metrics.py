@@ -1,4 +1,4 @@
-"""Métricas Prometheus (Story 3.5) — RED + métricas de negócio do HDD.
+"""Métricas Prometheus (Story 3.5 / Epic 8) — RED + métricas de negócio do HDD.
 
 Harness de dogfood (Story 7.1): além das métricas-base, expõe os sinais que
 provam a **hipótese H-A (capacidade)** — desfecho da execução autônoma e
@@ -13,6 +13,8 @@ proximidade-de-limite. Só é possível medir SLOTS internos, HITS de limite
 from __future__ import annotations
 
 from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, generate_latest
+
+from hdd.contracts.dtos import LlmResult
 
 REGISTRY = CollectorRegistry()
 
@@ -81,6 +83,32 @@ quota_limit_hits = Counter(
     "distinto de no_quota (teto interno de slots).",
     registry=REGISTRY,
 )
+
+
+# --- Epic 8: consumo real do driver `api` (RF-12) ----------------------------
+# Só incrementados quando os campos NÃO são None; no-op para driver subscription
+# (que não emite tokens/custo via `claude -p`).
+llm_tokens_total = Counter(
+    "hdd_llm_tokens_total",
+    "Tokens consumidos por tipo (input/output) — driver api.",
+    ["type"],
+    registry=REGISTRY,
+)
+llm_cost_usd_total = Counter(
+    "hdd_llm_cost_usd_total",
+    "Custo acumulado em USD — driver api.",
+    registry=REGISTRY,
+)
+
+
+def record_llm_usage(result: LlmResult) -> None:
+    """Incrementa contadores de tokens/custo quando presentes (no-op para subscription)."""
+    if result.input_tokens is not None:
+        llm_tokens_total.labels(type="input").inc(result.input_tokens)
+    if result.output_tokens is not None:
+        llm_tokens_total.labels(type="output").inc(result.output_tokens)
+    if result.cost_usd is not None:
+        llm_cost_usd_total.inc(result.cost_usd)
 
 
 def render_metrics() -> bytes:

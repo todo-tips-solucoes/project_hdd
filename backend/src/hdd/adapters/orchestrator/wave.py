@@ -21,6 +21,7 @@ from langgraph.types import Command, interrupt
 from hdd.contracts.ports import LLMProvider, Vcs
 from hdd.domain import wave as wv
 from hdd.observability import get_logger
+from hdd.observability.metrics import record_llm_usage
 
 log = get_logger("orchestrator")
 
@@ -68,8 +69,9 @@ class WaveOrchestrator:
 
     # --- nós ---------------------------------------------------------------
     def _plan(self, state: WaveGraphState) -> dict[str, Any]:
-        plan = self._llm.invoke(f"Planeje a tarefa: {state['task']}").text
-        return {"plan": plan, "wave_state": self._to(state, wv.WaveState.EXECUTING)}
+        result = self._llm.invoke(f"Planeje a tarefa: {state['task']}")
+        record_llm_usage(result)
+        return {"plan": result.text, "wave_state": self._to(state, wv.WaveState.EXECUTING)}
 
     def _execute(self, state: WaveGraphState) -> dict[str, Any]:
         prompt = f"Implemente conforme o plano:\n{state.get('plan', '')}"
@@ -79,7 +81,8 @@ class WaveOrchestrator:
                 f"\n\nA verificação anterior falhou com:\n{feedback}\n"
                 "Corrija a implementação."
             )
-        self._llm.invoke(prompt)
+        result = self._llm.invoke(prompt)
+        record_llm_usage(result)
         return {"wave_state": self._to(state, wv.WaveState.VERIFYING)}
 
     def _verify_node(self, state: WaveGraphState) -> dict[str, Any]:
