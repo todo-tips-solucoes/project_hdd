@@ -476,3 +476,44 @@ Onda `019e9911-ef4d` → **awaiting_gate one-shot**; PR #43 → CI 6/6 → `ee0f
 **F7 GENERALIZADO** ✅ — gate de testes autônomo, provado ao vivo (dispara, bloqueia, e converge após
 correção). **Ativação:** ondas de feature setam `HDD_REQUIRE_TESTS_GLOB` (glob casando o prefixo do
 path, ex.: `*tests/*.py`) no override de compose; deploy de prod = passo separado (PC-2).
+
+### Meta-onda 15 — Epic 8: driver `api` (RF-12, custo+tokens reais) (2026-06-08)
+
+Primeira onda do **Epic 8**. Implementa o driver `api` (RF-12) que mede **consumo real** (tokens +
+custo), pelo **Caminho 1** confirmado com o operador: o `api` é o **mesmo agente `claude -p`** do
+`subscription`, só trocando a auth (`ANTHROPIC_API_KEY` via `env`, nunca em argv/log) — com a key, a
+saída JSON passa a reportar `usage`/`total_cost_usd`, parseados no `LlmResult`. Python-only (não toca a
+API → sem drift), `HDD_REQUIRE_TESTS_GLOB=*tests/*.py` ligado. Oracle: `/var/lib/hdd-oracles/api-driver`
+(mock de `subprocess`, offline, $0). Escopo: `ApiProvider.invoke` + `LlmResult` (input/output_tokens,
+cost_usd) + `settings.anthropic_api_key` + `factory.make_provider` (chaveia por `llm_driver`) +
+`metrics` (`hdd_llm_tokens_total{type}`, `hdd_llm_cost_usd_total`, `record_llm_usage`, fiado no `wave.py`).
+
+**Achado F10 — o oracle deve pinar COMPORTAMENTO, não detalhe de implementação.** A 1ª tentativa
+**escalou**. Causa-raiz (via `verify_feedback` no checkpoint): o oracle assertava
+`provider.api_key == ...` (nome do atributo), enquanto o teste que o **próprio agente** escreveu
+assertava `provider._api_key` (privado). Os dois são **contraditórios** — nenhuma implementação
+satisfaz ambos — então o agente **oscilou** (`api_key` ↔ `_api_key`) a cada correção e esgotou N.
+(ruff/mypy/lint-imports nunca foram o problema.) **Fix:** o teste de factory do oracle passou a ser
+**comportamental** — verifica que `llm_driver="api"` → `ApiProvider` **e** que a key configurada chega
+ao `env` do subprocess (via `invoke` mockado), sem acoplar ao nome do atributo. RED 10/1 e GREEN 11/11
+re-validados fora do loop; o prompt ganhou nota de consistência (teste do agente ↔ implementação).
+
+**Re-prova (oracle endurecido) — convergência one-shot:**
+
+| | `->execute` | `verify.concluido` | desfecho |
+|---|---|---|---|
+| Oracle frágil (pinava atributo) | — | 0 (×4) | **escalou** (oscilação `api_key`↔`_api_key`) |
+| Oracle comportamental | **1** | **1** | **awaiting_gate one-shot** (0 correções) |
+
+Onda `019ea8ef-f66e` → awaiting_gate one-shot. Gate humano: o agente usou `self._api_key` (privado) —
+aceito pelo oracle comportamental, prova viva do F10. Removido 1 arquivo espúrio da raiz
+(`run_dod_checks.py`, scratch do agente). PR #46 → **CI 6/6 verde** → merged `--squash` **sem `--admin`**
+→ `c743d24`.
+
+**F10 REGISTRADO** ✅ — oracle de aceitação pina contrato observável (a credencial chega ao subprocess),
+nunca o nome interno do atributo; senão conflita com a escolha de encapsulamento do agente → oscilação.
+
+**Pendente (gate separado, fora desta onda):** validação **ao vivo** sob `llm_driver=api` — gasta **$
+real** e exige a `ANTHROPIC_API_KEY` nos secrets (com `env_prefix=HDD_`, provavelmente
+`/run/secrets/hdd_anthropic_api_key` — confirmar). Tratada como o gate de quota, com custo estimado
+antes de rodar.
