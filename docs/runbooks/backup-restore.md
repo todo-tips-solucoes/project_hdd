@@ -60,15 +60,34 @@ R2** (S3-compatível) com **pgBackRest**, e restauração point-in-time (PITR).
 ## Agendamento (ativo em produção)
 
 `ops/pgbackrest/scheduled-backup.sh <full|diff>` invoca o pgbackrest no contêiner
-postgres (keys dos secrets, nunca em env). Cron instalado no nó:
+postgres (`docker compose exec -u postgres`, keys dos secrets, nunca em env).
+Instalado no **crontab do usuário `hdd`** (que está no grupo `docker`); `crontab -e`:
 
 ```cron
-0 3 * * 0   /var/lib/projeto_hdd/ops/pgbackrest/scheduled-backup.sh full >> /var/log/hdd-backup.log 2>&1
-0 3 * * 1-6 /var/lib/projeto_hdd/ops/pgbackrest/scheduled-backup.sh diff >> /var/log/hdd-backup.log 2>&1
+# pgBackRest — full semanal (dom) + diff diário (seg-sáb) 03:17 UTC. Story 6.5.
+17 3 * * 0   /var/lib/projeto_hdd/ops/pgbackrest/scheduled-backup.sh full >> /var/lib/projeto_hdd/ops/pgbackrest/backup.log 2>&1
+17 3 * * 1-6 /var/lib/projeto_hdd/ops/pgbackrest/scheduled-backup.sh diff >> /var/lib/projeto_hdd/ops/pgbackrest/backup.log 2>&1
 ```
 
-Full semanal (Dom 03h) + diferencial diário (Seg–Sáb 03h). A retenção
-(`repo1-retention-full=4`) expira backups antigos automaticamente.
+Full semanal (Dom 03:17 UTC) + diferencial diário (Seg–Sáb). A retenção
+(`repo1-retention-full=4`) expira fulls antigos automaticamente (~4 semanas de
+janela); o WAL contínuo cobre o PITR entre backups. O log
+`ops/pgbackrest/backup.log` é gitignored.
+
+> **Histórico:** o cron foi de fato instalado em 2026-06-06 e **validado ao vivo**
+> (disparou às 03:17 UTC — diff no sábado, full no domingo, diff na segunda).
+> Antes disso, este agendamento estava apenas documentado, **não ativo**.
+
+### Verificar que o cron disparou
+
+```bash
+tail -n 4 /var/lib/projeto_hdd/ops/pgbackrest/backup.log     # último run — confira "fim (rc=0)"
+# inventário de backups (full/diff + range de WAL); creds dos secrets, não expostas:
+docker compose --env-file deploy.env -f compose.prod.yaml exec -T -u postgres postgres sh -c '
+  export PGBACKREST_REPO1_S3_KEY=$(cat /run/secrets/hdd_r2_access_key)
+  export PGBACKREST_REPO1_S3_KEY_SECRET=$(cat /run/secrets/hdd_r2_secret_key)
+  pgbackrest --stanza=hdd info'
+```
 
 ## Restauração point-in-time (PITR)
 
