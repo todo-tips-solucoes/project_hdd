@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     pg_dsn: str = "postgresql://hdd:hdd_dev@localhost:5433/hdd"
     # RF-12: driver de provider trocável por config (subscription ↔ api).
     llm_driver: Literal["subscription", "api"] = "subscription"
+    # API key da Anthropic — usada pelo driver `api`; vem de /run/secrets em prod.
+    anthropic_api_key: str = ""
     model: str | None = None
     log_level: str = "INFO"
     # Timeout (s) de cada invocação `claude -p`. O claude é um agente completo

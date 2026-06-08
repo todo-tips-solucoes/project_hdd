@@ -15,6 +15,7 @@ from collections.abc import AsyncIterator
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
+from hdd.adapters.llm.api import ApiProvider
 from hdd.adapters.llm.subscription import (
     DEFAULT_DISALLOWED,
     WORKSPACE_DISALLOWED,
@@ -25,12 +26,41 @@ from hdd.adapters.orchestrator.wave import Verifier, WaveOrchestrator
 from hdd.adapters.sandbox.verifier import make_sandbox_codegen
 from hdd.adapters.vcs import GitHubVcs
 from hdd.config.settings import Settings
+from hdd.contracts.ports import LLMProvider
 
 
 def _always_ok(_workspace: str) -> tuple[bool, str]:
     # Default para o caminho de RESUME (API), onde o nó `verify` nunca é
     # reexecutado. O worker injeta o verificador real do sandbox (Story 6.3).
     return (True, "")
+
+
+def make_provider(
+    settings: Settings,
+    *,
+    workspace: str = "",
+    allow_write: bool = False,
+) -> LLMProvider:
+    """Retorna ApiProvider ou ClaudeSubscriptionProvider conforme settings.llm_driver."""
+    disallowed = WORKSPACE_DISALLOWED if allow_write else DEFAULT_DISALLOWED
+    permission_mode = "acceptEdits" if allow_write else None
+    cwd = workspace or None
+    if settings.llm_driver == "api":
+        return ApiProvider(
+            api_key=settings.anthropic_api_key,
+            model=settings.model,
+            timeout=settings.claude_timeout_s,
+            cwd=cwd,
+            disallowed_tools=disallowed,
+            permission_mode=permission_mode,
+        )
+    return ClaudeSubscriptionProvider(
+        model=settings.model,
+        timeout=settings.claude_timeout_s,
+        cwd=cwd,
+        disallowed_tools=disallowed,
+        permission_mode=permission_mode,
+    )
 
 
 @contextlib.asynccontextmanager
@@ -52,15 +82,7 @@ async def open_orchestrator(
     # `tests/unit/test_security_invariants.py::test_pc1_execute_contido_pelo_boundary_do_worker`.
     # ⚠️ O driver host (`scripts/calibration_wave.py`) roda no HOST e NÃO tem esse
     # boundary — é só para a calibração Fase 1 (repo separado), nunca meta-dogfood.
-    disallowed = WORKSPACE_DISALLOWED if allow_write else DEFAULT_DISALLOWED
-    provider = ClaudeSubscriptionProvider(
-        model=settings.model,
-        timeout=settings.claude_timeout_s,
-        cwd=workspace or None,
-        disallowed_tools=disallowed,
-        # Modo workspace: auto-aceita edições (senão o claude -p não escreve nada).
-        permission_mode="acceptEdits" if allow_write else None,
-    )
+    provider = make_provider(settings, workspace=workspace, allow_write=allow_write)
     # Worker (com workspace): nó `pr` abre o PR a partir do clone (6.7).
     # Resume na API (sem workspace, com repo_slug): nó `gate` mergeia via `gh
     # --repo` (6.8). Sem nenhum dos dois → sem VCS (dev).
