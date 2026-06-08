@@ -156,6 +156,18 @@ jobs:
           tags: hdd-worker:ci
           cache-from: type=gha,scope=worker
           cache-to: type=gha,mode=max,scope=worker
+      - name: backend — meta-sandbox
+        # Valida que o sandbox de verify do meta-dogfood ainda builda (deps Python +
+        # Node/openapi-typescript) a cada PR/push — pega deps quebradas ANTES do gate,
+        # em vez de só quando uma meta-onda falha com ModuleNotFoundError. (retro #7)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          target: meta-sandbox
+          push: false
+          tags: hdd-meta-sandbox:ci
+          cache-from: type=gha,scope=meta-sandbox
+          cache-to: type=gha,mode=max,scope=meta-sandbox
       - name: frontend — standalone
         uses: docker/build-push-action@v6
         with:
